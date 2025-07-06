@@ -1,0 +1,115 @@
+
+MODULE: 07_route_finder
+GOAL: Discover the most profitable multi-hop swap route using DFS-based traversal on the flat graph with memoization and token-index-based lookup.
+
+---
+
+STRATEGY:
+
+- Run DFS from source token (e.g. USDT) up to 4 hops deep
+- At each hop:
+    - Skip unsafe tokens (honeypots, high-tax)
+    - Skip already visited tokens (no cycles)
+    - Simulate swap and forward output
+- Return path with highest final amountOut
+
+---
+
+INPUTS:
+- token_index: HashMap<H160, usize>
+- flat_graph: Vec<Vec<Edge>>
+- reserve_cache: DashMap<H160, PoolState>
+- safe_tokens: DashMap<H160, TokenMeta>
+- amount_in: U256
+- slippage_bps: u32
+
+---
+
+DFS FUNCTION SIGNATURE:
+
+```rust
+fn dfs_find_best_path(
+    current: usize,
+    target: usize,
+    visited: &mut HashSet<usize>,
+    depth: usize,
+    max_depth: usize,
+    current_amount: U256,
+    path: &mut Vec<usize>,
+    best: &mut Option<(Vec<usize>, U256)>
+);
+```
+
+---
+
+MEMOIZATION STRUCTURE:
+
+```rust
+DashMap<(usize, usize, usize), U256> // (token_index, depth, amountIn) → amountOut
+```
+
+Use to avoid redundant simulations.
+
+---
+
+DFS ROUTE TRAVERSAL:
+
+```rust
+for edge in &flat_graph[current] {
+    if !visited.contains(&edge.to) && is_safe(edge.to) {
+        let out = simulate_swap(edge, current_amount)?;
+        if let Some(cached) = memo.get(&(edge.to, depth+1, out)) {
+            // Use cached value
+        } else {
+            visited.insert(edge.to);
+            path.push(edge.to);
+            dfs_find_best_path(...);
+            path.pop();
+            visited.remove(&edge.to);
+        }
+    }
+}
+```
+
+---
+
+FINAL OUTPUT:
+
+Return the most profitable route:
+```rust
+struct RoutePlan {
+    path: Vec<usize>,
+    pools: Vec<PoolInfo>,
+    amount_out: U256,
+}
+```
+
+---
+
+CONSTRAINTS:
+
+- Max depth = 4
+- Never use unsafe tokens
+- Avoid duplicated tokens in path
+- Never block or use unwrap()
+
+---
+
+PERFORMANCE TIPS:
+
+- Use Rayon to parallelize DFS start from each neighbor of source
+- Run buy and sell leg search in parallel
+- Memoize per-hop simulations to speed up long paths
+
+---
+
+EXAMPLE:
+
+Path: USDT (0) → WBNB (1) → tokenX (3) → BUSD (5) → USDT (0)
+
+Use:
+- token indices
+- edge pool addresses
+- cached reserve/slot0/liquidity from RAM
+
+Return RoutePlan with best profit.

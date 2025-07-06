@@ -1,0 +1,103 @@
+
+MODULE: 03_reserve_cache
+GOAL: Preload all relevant price-related data for V2 and V3 pools into in-memory cache to enable instant route simulation with no chain calls during execution.
+
+---
+
+CACHE STRUCTURE:
+
+Use a thread-safe in-memory map:
+```rust
+type ReserveCache = DashMap<H160, PoolState>;
+
+struct PoolState {
+    pool_type: PoolType, // V2 or V3
+    token0: H160,
+    token1: H160,
+    reserve0: Option<U256>,    // for V2
+    reserve1: Option<U256>,    // for V2
+    sqrt_price_x96: Option<U256>, // for V3
+    liquidity: Option<U256>,      // for V3
+    tick: Option<i32>,            // for V3
+    last_updated: u64,
+}
+```
+
+---
+
+STEP 1: LOAD FROM JSONL
+
+From `pairs.jsonl`, for each pool:
+- If V2:
+    - Call `getReserves()` → (reserve0, reserve1)
+- If V3:
+    - Call `slot0()` → sqrtPriceX96, tick
+    - Call `liquidity()` → raw liquidity
+
+---
+
+STEP 2: POPULATE CACHE
+
+```rust
+for pool in loaded_pairs {
+    match pool.dex_type {
+        V2 => {
+            let (r0, r1) = get_reserves(pool.address).await?;
+            cache.insert(pool.address, PoolState {
+                pool_type: V2,
+                token0: pool.token0,
+                token1: pool.token1,
+                reserve0: Some(r0),
+                reserve1: Some(r1),
+                ..Default::default()
+            });
+        }
+        V3 => {
+            let slot0 = get_slot0(pool.address).await?;
+            let liq = get_liquidity(pool.address).await?;
+            cache.insert(pool.address, PoolState {
+                pool_type: V3,
+                token0: pool.token0,
+                token1: pool.token1,
+                sqrt_price_x96: Some(slot0.sqrt_price_x96),
+                tick: Some(slot0.tick),
+                liquidity: Some(liq),
+                ..Default::default()
+            });
+        }
+    }
+}
+```
+
+---
+
+REQUIREMENT:
+
+- All reserves/sqrtPrice/tick/liquidity must be available before `simulate_swap_path()` starts.
+- No chain call allowed during hotpath.
+
+---
+
+BEST PRACTICES:
+
+- Run preload on startup before price tracker activates.
+- Batch load with concurrency:
+    - Use `tokio::spawn` or `rayon` to parallelize RPC calls
+- Chunk the loading if >50,000 pools to avoid overload
+
+---
+
+BENEFITS:
+
+- ✅ Real-time route simulation with zero RPC delay
+- ✅ Works offline after cache is ready
+- ✅ Supports V2 and V3 pools seamlessly
+- ✅ Reusable by arbitrage finder, route simulator, and price tracker
+
+---
+
+FUTURE OPTIMIZATION:
+
+- Add `last_updated` timestamp to each pool
+- Auto-refresh stale entries after N minutes
+- Pre-sort pools by liquidity for faster path decisions

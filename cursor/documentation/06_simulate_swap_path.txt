@@ -1,0 +1,126 @@
+
+MODULE: 06_simulate_swap_path
+GOAL: Simulate multi-hop swap routes with full support for slippage, transfer tax, pool fee deduction, and V2/V3 logic using RAM-only logic.
+
+---
+
+INPUT:
+- amount_in: U256 (e.g., 1e18 for 1 USDT)
+- path: Vec<usize> (token indices)
+- pools: Vec<PoolInfo> (DEX version, pool address, fee, reserves)
+- safe_tokens: DashMap<H160, TokenMeta>
+- slippage_bps: u32 (e.g., 50 = 0.5%)
+
+---
+
+STRUCTURES:
+
+```rust
+enum PoolType { V2, V3 }
+
+struct PoolInfo {
+    pool_type: PoolType,
+    pool_address: H160,
+    fee_bps: u32,
+    reserves: Option<(U256, U256)>,     // V2
+    sqrt_price_x96: Option<U256>,      // V3
+    liquidity: Option<U256>,           // V3
+}
+
+struct TokenMeta {
+    transfer_tax: u8,
+    decimals: u8,
+    is_honeypot: bool
+}
+
+struct HopLog {
+    from: H160,
+    to: H160,
+    amount_in: U256,
+    amount_after_tax_in: U256,
+    amount_after_fee: U256,
+    raw_amount_out: U256,
+    amount_after_slippage: U256,
+    amount_after_tax_out: U256,
+    fee_bps: u32,
+    tax_in: u8,
+    tax_out: u8
+}
+```
+
+---
+
+PROCESS FLOW (per hop):
+
+1. Apply transfer tax on input
+2. Apply pool fee (0.3%, 0.05%, etc.)
+3. Simulate swap (V2 or V3)
+4. Deduct slippage
+5. Apply output token's transfer tax
+
+---
+
+PER-HOP FORMULAS:
+
+```rust
+amount_after_tax_in = amount_in * (100 - tax_in) / 100
+amount_after_fee = amount_after_tax_in * (1000 - fee_bps) / 1000
+amount_out = simulate_v2_or_v3(amount_after_fee)
+amount_after_slippage = amount_out * (10000 - slippage_bps) / 10000
+amount_after_tax_out = amount_after_slippage * (100 - tax_out) / 100
+```
+
+---
+
+SIMULATION ENTRYPOINT:
+
+```rust
+fn simulate_swap_path(
+    path: &[usize],
+    pools: &[PoolInfo],
+    amount_in: U256,
+    slippage_bps: u32,
+    safe_tokens: &DashMap<H160, TokenMeta>
+) -> Option<(U256, Vec<HopLog>)> {
+    // Iterate over path
+    // At each hop, apply formula
+    // Return final output and full hop log
+}
+```
+
+---
+
+LATENCY RULES:
+
+- ✅ No file access
+- ✅ No unwraps/panics
+- ✅ No chain calls
+- ✅ Use only in-memory data
+- ✅ Ready for SIMD batching
+
+---
+
+CACHING STRATEGY:
+
+Use:
+```rust
+DashMap<(usize, usize, U256, u32), HopLog>
+```
+
+Memoize each hop to avoid recomputation.
+
+---
+
+BENEFITS:
+
+- ✅ Accurate tax + slippage adjusted output
+- ✅ Works across mixed V2/V3 paths
+- ✅ Fully RAM-based and cache-optimized
+- ✅ Logs per hop to debug execution
+
+---
+
+USAGE:
+
+- Used by route_finder to simulate full paths
+- Used by arbitrage_finder to compare buy/sell legs

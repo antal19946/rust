@@ -1,0 +1,112 @@
+
+MODULE: 02_flat_graph_builder
+GOAL: Convert preloaded token pairs into a flat, cache-optimized memory graph using Vec<Vec<Edge>> structure with token indexing to support ultra-fast routing.
+
+---
+
+STEP 1: TOKEN COLLECTION
+
+- From pairs.jsonl, collect all unique token addresses
+- Assign a unique index to each token
+
+Mappings:
+```rust
+let mut token_index: HashMap<H160, usize> = HashMap::new();
+let mut index_token: Vec<H160> = vec![];
+
+for (i, token) in all_tokens.iter().enumerate() {
+    token_index.insert(*token, i);
+    index_token.push(*token);
+}
+```
+
+Result:
+- USDT = 0
+- WBNB = 1
+- tokenX = 2
+
+---
+
+STEP 2: EDGE STRUCTURE
+
+```rust
+enum DexType { V2, V3 }
+
+struct Edge {
+    to: usize,
+    pool_address: H160,
+    dex_type: DexType,
+    fee: u32,
+}
+```
+
+- Edge represents a single swap possibility between two tokens.
+
+---
+
+STEP 3: INITIALIZE FLAT GRAPH
+
+Create:
+```rust
+let mut flat_graph: Vec<Vec<Edge>> = vec![vec![]; token_index.len()];
+```
+
+Populate:
+```rust
+for pair in all_pairs {
+    let from = token_index[&pair.token0];
+    let to = token_index[&pair.token1];
+
+    let edge = Edge {
+        to,
+        pool_address: pair.pair_address,
+        dex_type: pair.dex_type,
+        fee: pair.fee.unwrap_or(0),
+    };
+
+    flat_graph[from].push(edge.clone());
+    flat_graph[to].push(Edge { to: from, ..edge });
+}
+```
+
+---
+
+STEP 4: SAVE STRUCTURES
+
+At the end of builder:
+- Save token_index and index_token to disk (optional) as JSON
+- flat_graph stays in RAM during bot execution
+
+---
+
+BENEFITS:
+
+- ✅ No HashMap lookup during routing
+- ✅ Path simulation only uses indices (usize) → faster than H160
+- ✅ Ready for SIMD parallelism
+- ✅ Multiple edges per pair supported (multi-fee, multi-DEX)
+
+---
+
+CONSTRAINT:
+
+- This structure must be preloaded before any route simulation starts
+- All downstream modules (route_finder, simulator) must work with token indices
+
+---
+
+EXAMPLE:
+
+Pairs:
+- USDT → WBNB (0→1), V2, 30
+- USDT → WBNB (0→1), V3, 3000
+- WBNB → tokenX (1→2), V2, 30
+
+Then:
+```rust
+flat_graph[0] = [Edge{to:1, V2}, Edge{to:1, V3}]
+flat_graph[1] = [Edge{to:0, V2}, Edge{to:0, V3}, Edge{to:2, V2}]
+```
+
+Now DFS from token_index[USDT] gives all possible paths.
+

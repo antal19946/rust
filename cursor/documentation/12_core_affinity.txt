@@ -1,0 +1,83 @@
+
+MODULE: 12_core_affinity
+GOAL: Bind critical arbitrage bot threads to specific physical CPU cores using `core_affinity` to avoid thread hopping, maximize cache hits, and reduce execution jitter.
+
+---
+
+TARGET HARDWARE: Intel i9-14900K
+
+- 8 Performance Cores (P-Cores): Logical threads 0–15 (with hyperthreading)
+- 16 Efficiency Cores (E-Cores): Logical threads 16–31 (no hyperthreading)
+
+---
+
+THREAD ALLOCATION PLAN:
+
+| Task                      | Core Type | Thread IDs | Purpose                             |
+|---------------------------|-----------|-------------|--------------------------------------|
+| DFS + simulate_swap_path | P-Cores   | 0–7         | Latency-critical logic               |
+| Price Tracker + Mempool  | E-Cores   | 16–23       | Background sync tasks                |
+| OS + VSCode/Browser       | OS-managed| 8–15, 24–31 | Leave free for smooth multitasking   |
+
+---
+
+RUST EXAMPLE: CORE PINNING WITH RAYON
+
+```rust
+use core_affinity::set_for_current;
+use rayon::ThreadPoolBuilder;
+
+let cores = core_affinity::get_core_ids().unwrap();
+
+// Select 8 P-Cores
+let pinned_cores = cores[0..8].to_vec();
+
+let pool = ThreadPoolBuilder::new()
+    .num_threads(pinned_cores.len())
+    .start_handler(move |i| {
+        set_for_current(pinned_cores[i]);
+    })
+    .build()
+    .unwrap();
+```
+
+---
+
+BENEFITS:
+
+- ✅ Eliminates OS thread shuffling
+- ✅ Improves CPU cache reuse (L1/L2)
+- ✅ Stable execution timing
+- ✅ Prevents lag from UI/Chrome affecting arbitrage thread
+
+---
+
+TIPS:
+
+- Pin Rayon pools (DFS, Simulation)
+- Leave some cores unmanaged for system-level apps
+- Use core ID mapping from `core_affinity::get_core_ids()` only once at startup
+
+---
+
+VALIDATION:
+
+- Use `htop` or `taskset -c` to validate core bindings
+- Use logging to print which thread is pinned where
+
+---
+
+WARNING:
+
+- Don't double-book cores with heavy threads
+- Over-pinning (32/32) will lead to degraded OS performance
+
+---
+
+OPTIMAL BALANCE:
+
+- Use 50–60% of total cores for core-pinned logic
+- Reserve remaining for:
+    - Logging
+    - Async event handling
+    - Desktop environment

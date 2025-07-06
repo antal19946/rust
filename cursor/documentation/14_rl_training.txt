@@ -1,0 +1,104 @@
+
+MODULE: 14_rl_training
+GOAL: Introduce a future enhancement where Reinforcement Learning (RL) is used to train a reward model that guides the bot to pick the most profitable and safest arbitrage paths based on historical success.
+
+---
+
+WHY RL FOR ARBITRAGE?
+
+- Some routes:
+    - Consistently yield better profit
+    - Fail less (due to gas, slippage, MEV)
+- RL allows the bot to learn which:
+    - Tokens are most profitable
+    - Paths result in stable returns
+    - Swaps are consistently safe
+
+---
+
+REINFORCEMENT LEARNING LOOP:
+
+| Component   | Description                                   |
+|-------------|-----------------------------------------------|
+| Agent       | The bot choosing routes (action selector)     |
+| State       | Current token reserves, pool fees, volatility |
+| Action      | Route: path + amounts + DEX types             |
+| Reward      | Profit in USDT (post-gas, post-tax)           |
+| Policy      | Strategy used to choose next route            |
+
+---
+
+DATA TO COLLECT (for training):
+
+- Path used (tokens, pool addresses, DEX type)
+- Simulated vs Real profit
+- Gas used
+- Slippage hit
+- Token taxes or traps
+- TX success/fail
+
+---
+
+REWARD EXAMPLES:
+
+```text
++10 → profitable swap
++5  → profitable but high tax
+-10 → TX reverted
+-20 → honeypot
++2  → passed callStatic but low ROI
+```
+
+---
+
+MODEL DESIGN (FUTURE):
+
+- Input vector:
+    - Token path IDs
+    - Pool fees
+    - Last trade volume
+    - Token transfer_tax
+
+- Output:
+    - Expected reward score
+    - Action confidence
+
+Train using:
+- Q-learning
+- PPO (Proximal Policy Optimization)
+- Simple policy gradient
+
+---
+
+INFERENCE USAGE:
+
+Before simulation:
+- Use model to score 1000+ candidate paths
+- Simulate only top 10 with highest expected reward
+- Save huge compute time, avoid bad routes
+
+---
+
+IMPLEMENTATION ROADMAP:
+
+1. Start logging `ExecutionLog` after every trade
+2. Build dataset → CSV or JSONL format
+3. Train model with PyTorch / TensorFlow offline
+4. Export model
+5. Integrate inference layer in Rust (via FFI or JSON bridge)
+
+---
+
+CAUTION:
+
+- Don’t let RL override safety checks
+- Always apply honeypot + slippage filters post-inference
+
+---
+
+OUTCOME:
+
+- ✅ Smart path selection
+- ✅ Self-optimizing bot
+- ✅ Reduced gas waste and failed TX
+- ✅ Learning from own trade history

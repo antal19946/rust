@@ -1,0 +1,103 @@
+
+PROJECT: ULTRA LOW LATENCY ARBITRAGE BOT (BSC + RUST + LOCAL NODE)
+
+---
+
+🎯 GOAL:
+Build an ultra-fast arbitrage bot on Binance Smart Chain that operates entirely in-memory (RAM), finds profitable opportunities across all DEXs (V2 + V3), and executes them in less than 150ms — faster than mempool bots, scam-free, and optimized for real-world trading.
+
+---
+
+🧠 HIGH-LEVEL ARCHITECTURE:
+
+1. **Preload Phase** (Offline/Init)
+    - ✅ Load all token pairs from all V2/V3 factory contracts
+    - ✅ Build token index (H160 → usize)
+    - ✅ Construct Vec<Vec<Edge>> flat graph
+    - ✅ Load safe token metadata (tax, honeypot flag)
+    - ✅ Fetch and cache reserves, liquidity, tick, sqrtPrice for each pool
+
+2. **Live Phase** (Real-Time Bot)
+    - ✅ Start WebSocket listeners for Swap/Sync events
+    - ✅ Update affected pool's reserve state in memory
+    - ✅ Trigger arbitrage finder on every update
+    - ✅ Run DFS to find profitable routes (up to 4 hops)
+    - ✅ Simulate both buy and sell legs via `simulate_swap_path`
+    - ✅ Ensure slippage/tax/profit safe → run `callStatic`
+    - ✅ Execute trade via router if profitable
+    - ✅ All actions are core-pinned, latency-controlled
+
+3. **Protection + Safety**
+    - ✅ Filter tokens using safe_tokens.json
+    - ✅ Skip all honeypots, high-tax, or unverified tokens
+    - ✅ Memoize simulations per-hop to avoid recomputation
+
+4. **Optional Mempool (Future)**
+    - ✅ Decode live txs in mempool to predict token movements
+    - ✅ Preposition trades (frontrun or arbitrage)
+    - ✅ Requires txpool access or Flashbots relay
+
+5. **Optional RL (Future)**
+    - ✅ Learn best path types using reward-based model
+    - ✅ Score candidate paths before simulation
+    - ✅ Prioritize high-confidence trades and avoid reverts
+
+---
+
+🧱 MODULE MAP (with Files):
+
+| Module                     | File                          | Description                            |
+|----------------------------|-------------------------------|----------------------------------------|
+| Strategy Overview          | ultra_low_latency_strategy.txt| Full plan, flow, phase-wise logic      |
+| CPU Pinning                | core_pinning_strategy.txt      | Thread allocation (DFS, WS, System)    |
+| Graph Building             | 01_fetch_pairs.txt             | Load all V2/V3 pools                   |
+| Flat Graph Memory          | 02_flat_graph_builder.txt      | Token index + Vec<Vec<Edge>> builder  |
+| Reserve Cache              | 03_reserve_cache.txt           | Preload reserves, sqrtPrice, tick      |
+| Price Tracker              | 04_price_tracker.txt           | WS listener for Sync/Swap              |
+| Token Indexing             | 05_token_indexing.txt          | H160 <-> usize token maps              |
+| Swap Simulator             | 06_simulate_swap_path.txt      | V2/V3, slippage, tax, per-hop logging  |
+| Route Finder               | 07_route_finder.txt            | DFS + Memoization for max profit path  |
+| Safe Token Classifier      | 08_safe_token_loader.txt       | Detect honeypots, tax %                |
+| Route Filter               | 09_route_filtering.txt         | Reject unsafe path before simulating   |
+| Executor                   | 10_executor.txt                | TX build, callStatic, gas, nonce       |
+| Latency Benchmarks         | 11_latency_benchmarks.txt      | Target speed for every stage           |
+| Core Affinity Setup        | 12_core_affinity.txt           | Pin threads using Rayon + cores        |
+| Mempool Decoder (Future)   | 13_mempool_decoder.txt         | Decode swap tx in mempool              |
+| RL Training (Future)       | 14_rl_training.txt             | Reward system, learnable agent         |
+
+---
+
+🚀 LIVE FLOW SUMMARY:
+
+1. Start → Load graph + reserves + safe tokens
+2. WS event (Swap/Sync) → update pool
+3. Spawn arbitrage_finder
+4. Run route_finder (DFS) for USDT → tokenX
+5. Simulate full path with simulate_swap_path()
+6. Check output - apply slippage + tax
+7. If profitable → execute tx with callStatic + router
+8. Repeat in <150ms
+
+---
+
+✅ BOT CAPABILITIES:
+
+- Real-time arbitrage across any DEX on BSC
+- Fully memory-based: no DB, no disk access
+- Core-pinned execution: no jitter, max consistency
+- Multi-hop, multi-DEX, V2+V3 mix
+- Spam-token detection and tax-safe routing
+- Future-proof with mempool/ML/MEV support
+
+---
+
+🔐 SECURITY & SAFETY:
+
+- Every route is filtered before simulation
+- callStatic ensures no failure at runtime
+- Honeypots, tax traps, and unknown tokens always skipped
+- No user-facing interface → API/daemon-based control
+
+---
+
+

@@ -1,0 +1,88 @@
+
+MODULE: 01_fetch_pairs
+GOAL: Fetch all V2 and V3 token pairs from DEX factory contracts, filter out unsafe/spam tokens, and save them to a local JSONL file for route graph construction.
+
+---
+
+STEP 1: DEFINE FACTORIES
+
+- Maintain factory address list for:
+    - V2 DEXs (e.g., PancakeSwap, Biswap V2)
+    - V3 DEXs (e.g., PancakeSwap V3, Uniswap V3 forks)
+
+- Events to scan:
+    - V2: PairCreated(token0, token1, pair)
+    - V3: PoolCreated(token0, token1, fee, pool)
+
+---
+
+STEP 2: FETCH LOGS
+
+For each factory:
+- Call `eth_getLogs` for past N blocks or from block 0 if first time.
+- Parse event signature and extract token0, token1, pool_address, fee.
+
+---
+
+STEP 3: FILTERS & VALIDATION
+
+Apply these filters:
+- Reject if token0 or token1 not in `safe_tokens.json`
+- Reject if pair already seen (avoid duplicates)
+- Reject pools with zero balance or created recently with no swaps (optional)
+
+---
+
+STEP 4: SAVE TO JSONL
+
+Each valid pool should be stored in a JSONL file like:
+```json
+{"token0":"0x...", "token1":"0x...", "pair_address":"0x...", "dex_type":"V2", "fee":null}
+{"token0":"0x...", "token1":"0x...", "pair_address":"0x...", "dex_type":"V3", "fee":3000}
+```
+
+File: `data/pairs.jsonl`
+
+---
+
+RUST PSEUDO-CODE:
+
+```rust
+let mut writer = BufWriter::new(File::create("data/pairs.jsonl")?);
+
+for factory in V2_FACTORIES {
+    let logs = fetch_logs(factory, "PairCreated").await;
+    for log in logs {
+        let (token0, token1, pair) = decode_v2_log(log);
+        if is_safe(token0) && is_safe(token1) {
+            write!(writer, "{{"token0":"{token0}","token1":"{token1}","pair_address":"{pair}","dex_type":"V2","fee":null}}\n")?;
+        }
+    }
+}
+
+for factory in V3_FACTORIES {
+    let logs = fetch_logs(factory, "PoolCreated").await;
+    for log in logs {
+        let (token0, token1, fee, pool) = decode_v3_log(log);
+        if is_safe(token0) && is_safe(token1) {
+            write!(writer, "{{"token0":"{token0}","token1":"{token1}","pair_address":"{pool}","dex_type":"V3","fee":{fee}}}\n")?;
+        }
+    }
+}
+```
+
+---
+
+BENEFITS:
+
+- ✅ One-time pair dump
+- ✅ Supports multi-DEX pool fetching
+- ✅ Fully RAM-loadable at bot startup
+- ✅ No disk access needed at runtime
+
+---
+
+NOTES:
+- Run this script once during startup or on a 12h/24h timer.
+- Do not allow dynamic chain fetch in production arbitrage loop.
+- Output file must be complete before starting graph builder.

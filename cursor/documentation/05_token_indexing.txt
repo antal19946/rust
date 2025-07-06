@@ -1,0 +1,102 @@
+
+MODULE: 05_token_indexing
+GOAL: Convert token addresses to integer indices for cache-efficient, SIMD-friendly graph traversal and path simulation.
+
+---
+
+WHY TOKEN INDEXING?
+
+- H160 comparisons and HashMap lookups are expensive inside loops.
+- Replacing addresses with `usize` enables:
+    - O(1) access in Vec
+    - Parallelism (Rayon, SIMD)
+    - Simpler path encoding
+    - Faster graph operations
+
+---
+
+STEP 1: BUILD TOKEN INDEX
+
+Collect all tokens from pairs.jsonl:
+```rust
+let mut token_index: HashMap<H160, usize> = HashMap::new();
+let mut index_token: Vec<H160> = vec![];
+
+for (i, token) in all_tokens.iter().enumerate() {
+    token_index.insert(*token, i);
+    index_token.push(*token);
+}
+```
+
+Example:
+- USDT = 0
+- WBNB = 1
+- tokenX = 2
+
+---
+
+STEP 2: STORE/LOAD (OPTIONAL)
+
+- You can optionally save `token_index` and `index_token` to disk as JSON
+- Load them on startup to preserve consistent ordering across runs
+
+---
+
+STEP 3: CONVERT PATHS TO INDICES
+
+```rust
+let path = vec![
+    token_index[&usdt],
+    token_index[&wbnb],
+    token_index[&tokenX]
+];
+```
+
+Now simulation will only use:
+```rust
+Vec<usize> = [0, 1, 2]
+```
+
+---
+
+BENEFITS:
+
+- ✅ No H160 string comparisons
+- ✅ Pure `usize` array → easy to iterate, windowed
+- ✅ Index-based access to flat_graph and memoization
+- ✅ Less memory overhead
+
+---
+
+IMPORTANT:
+
+- This token indexing must be built before:
+    - Graph creation (flat_graph)
+    - Route finding
+    - simulate_swap_path()
+
+- Pathfinding, cache keys, and edge lookups must all use token indices, not H160.
+
+---
+
+EXAMPLE CACHE KEY:
+
+```rust
+// Instead of (H160, H160, amountIn)
+let key = (usize, usize, U256);
+```
+
+---
+
+RESTRICTIONS:
+
+- Do not mutate token_index after it's built
+- Ensure all token0/token1 in pairs.jsonl exist in token_index
+
+---
+
+END GOAL:
+
+Every routing function works purely on `usize`-based token indices. The only place H160 is used is:
+- JSON parsing
+- When preparing final tx for execution

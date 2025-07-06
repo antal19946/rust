@@ -1,0 +1,84 @@
+
+MODULE: 09_route_filtering
+GOAL: Filter out any arbitrage route that includes scam, honeypot, or heavily taxed tokens before simulation to ensure safe and profitable execution.
+
+---
+
+WHY FILTER?
+
+- Simulating or executing a route with unsafe tokens can:
+    - Cause transaction to fail
+    - Get funds stuck
+    - Return fake profit due to high tax
+
+So, unsafe routes must be rejected before any compute-intensive simulation.
+
+---
+
+HOW TO FILTER:
+
+1. Load `safe_tokens.json` into:
+```rust
+DashMap<H160, TokenMeta>
+```
+
+2. Before simulating a route:
+```rust
+fn is_route_safe(path: &[usize], index_token: &[H160], safe_tokens: &DashMap<H160, TokenMeta>) -> bool {
+    for &token_index in path {
+        let token = index_token[token_index];
+        if let Some(meta) = safe_tokens.get(&token) {
+            if meta.is_honeypot || meta.transfer_tax >= 50 {
+                return false; // too dangerous
+            }
+        } else {
+            return false; // token not verified
+        }
+    }
+    true
+}
+```
+
+---
+
+RULES:
+
+- ❌ Honeypot = reject route
+- ❌ transfer_tax ≥ 50% = reject
+- ❌ Missing token in safe list = reject
+- ✅ All clean tokens with tax < 20% = allow
+
+---
+
+WHEN TO CALL:
+
+Call `is_route_safe()` before:
+- simulate_swap_path()
+- dfs_find_best_path()
+- arbitrage_finder()
+
+---
+
+LOGIC SUMMARY:
+
+| Check              | Condition                          | Action     |
+|-------------------|-------------------------------------|------------|
+| Token not in cache| Not in `safe_tokens`                | Reject     |
+| Honeypot token     | meta.is_honeypot == true           | Reject     |
+| High tax          | meta.transfer_tax >= 50             | Reject     |
+| Otherwise         | All tokens safe                     | Simulate ✅|
+
+---
+
+BENEFITS:
+
+- ✅ Save CPU by skipping bad paths
+- ✅ Prevent bot from stuck tokens
+- ✅ Higher win rate and tx success ratio
+
+---
+
+NOTE:
+
+- Can also log rejected routes for debug
+- Can allow 20–30% tax for specific strategies (optional toggle)

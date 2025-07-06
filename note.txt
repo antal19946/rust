@@ -1,0 +1,18 @@
+[File: src/fetch_pairs.rs]
+- Suggestion: Implement fetch_v2_pairs and fetch_v3_pools to actually fetch all pools/pairs from all main DEX factory addresses (given in strategy.txt), not just return empty vec![]
+
+[File: src/fetch_pairs.rs, src/safe_token.rs, main logic]
+- Suggestion: Use safe_tokens.json tokens only for routing (i.e., routes must pass through safe tokens), but arbitrage opportunities should be detected for any token found in the mempool, not just safe tokens. If a mempool tx involves tokenX (not in safe list), still try to find arbitrage for tokenX, but ensure the route passes through safe tokens.
+
+[File: src/fetch_pairs.rs, preload_reserves_in_chunks]
+- Suggestion: preload_reserve_function should be used at project startup to preload all pairs' reserves and liquidity into the reserve cache for faster access during arbitrage detection. 
+
+[File: src/reserve_cache.rs]
+- Suggestion: Use only preload_reserves_in_chunks for reserve preloading. Move this function from fetch_pairs.rs to reserve_cache.rs. Remove the 50,000 pool limit so that reserves for all pairs are loaded into the cache. 
+
+[File: main.rs, price_tracker.rs]
+- Issue: The start_price_tracker() function, which is essential for real-time reserve, sqrtPrice, liquidity, and tick updates, is not called anywhere in the bot. This means the reserve cache is not kept up-to-date after startup, leading to stale data for arbitrage detection.
+- Fix Strategy: During bot startup (in main.rs or ArbitrageBot::start()), call start_price_tracker() as a background async task using tokio::spawn. Pass the correct WebSocket endpoint, the list of tracked pool addresses, the reserve cache, the provider, and an arbitrage trigger callback. This will ensure the reserve cache is always updated in real-time, and arbitrage detection logic always works with fresh data. 
+
+[File: src/arbitrage_finder.rs]
+- Issue: The current logic in arbitrage_finder.rs does not match the expected flow or requirements. None of the implemented logic is useful for the intended arbitrage strategy. This file needs to be revisited and redesigned according to the actual requirements after the full project review. 

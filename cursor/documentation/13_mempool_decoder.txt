@@ -1,0 +1,114 @@
+
+MODULE: 13_mempool_decoder
+GOAL: Decode and classify live pending transactions from the mempool to identify profitable opportunities before block inclusion.
+
+---
+
+WHY MEMPOOL DECODING?
+
+- Gives early visibility into:
+    - Token swaps in flight
+    - Buy/sell volume surges
+    - Sandwich/frontrun opportunities
+
+---
+
+COMPONENTS:
+
+1. ✅ Local full node (Geth) with `txpool` access
+2. ✅ Mempool listener using `eth_subscribe` or polling `txpool_content`
+3. ✅ Decoder to parse:
+    - Router method (e.g., `swapExactTokensForTokens`)
+    - TokenIn / TokenOut / Amounts
+
+---
+
+RUST STRUCTURE:
+
+```rust
+struct PendingTx {
+    hash: H256,
+    from: H160,
+    to: H160,
+    input: Bytes,
+    gas_price: U256,
+    decoded: Option<SwapCall>
+}
+
+enum SwapCall {
+    SwapExactTokens {
+        amount_in: U256,
+        amount_out_min: U256,
+        path: Vec<H160>
+    },
+    SwapExactETH { ... },
+    Unknown
+}
+```
+
+---
+
+DECODING LOGIC:
+
+- Use router ABIs (V2/V3) to decode tx.input
+- Match function selector (first 4 bytes)
+- Decode params using `ethers::abi`
+
+Example:
+
+```rust
+let selector = &input[0..4];
+if selector == known_swap_selector {
+    let decoded = decode_router_input(input)?;
+    return Some(SwapCall::SwapExactTokens { ... });
+}
+```
+
+---
+
+USAGE:
+
+- Run continuously in background:
+```rust
+loop {
+    let pending_txs = get_pending_txpool().await;
+    for tx in pending_txs {
+        if let Some(SwapCall::SwapExactTokens { path, amount_in }) = decode(tx) {
+            if path.last() == USDT {
+                // potential sell — maybe price will drop!
+            }
+        }
+    }
+}
+```
+
+---
+
+APPLICATIONS:
+
+- 🧠 Detect when someone buys tokenX → price will rise
+- 🧠 Detect dump tx in mempool → pre-sell to avoid loss
+- 🧠 Filter bots → avoid colliding with frontrunners
+
+---
+
+SECURITY TIPS:
+
+- Always simulate decoded tx to ensure gas impact
+- Avoid reacting to low-volume tx
+- Only trust mempool from your local node (no public RPC)
+
+---
+
+LIMITATIONS:
+
+- Geth's mempool may not capture all tx instantly
+- Mempool tx may get dropped or reordered
+- You cannot guarantee inclusion order unless using MEV relay
+
+---
+
+OPTIONAL FUTURE:
+
+- Integrate with Flashbots or BloXroute for private tx access
+- Use REVM to simulate decoded mempool tx in-memory

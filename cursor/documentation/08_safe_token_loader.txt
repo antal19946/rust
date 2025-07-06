@@ -1,0 +1,108 @@
+
+MODULE: 08_safe_token_loader
+GOAL: Detect and classify safe tokens by testing transfer behavior for honeypot detection and measuring transfer tax for accurate swap simulation.
+
+---
+
+PROBLEM:
+
+- Some tokens:
+    - Are honeypots (can’t sell)
+    - Deduct high transfer tax (e.g., 10%)
+- These can break arbitrage execution if not filtered
+
+---
+
+SOLUTION:
+
+✅ Run `callStatic` transfer test per token  
+✅ Compare sent vs received amounts to estimate tax  
+✅ Save results in a local cache file `safe_tokens.json`
+
+---
+
+STRUCTURE:
+
+```rust
+struct TokenMeta {
+    is_honeypot: bool,
+    transfer_tax: u8,   // In percentage (0–100)
+    decimals: u8
+}
+
+type SafeTokenMap = DashMap<H160, TokenMeta>;
+```
+
+---
+
+LOGIC (PER TOKEN):
+
+```rust
+fn check_token_safety(token: H160, router: H160, test_wallet: H160) -> TokenMeta {
+    // Step 1: try static call to transfer token from router → test_wallet
+    // If it reverts = honeypot
+    // If not, check actual balance received
+    // Calculate tax = (sent - received) / sent * 100
+
+    let success = simulate_transfer(token, router, test_wallet);
+    if !success {
+        return TokenMeta { is_honeypot: true, transfer_tax: 0, decimals: 18 };
+    }
+
+    let sent = 1e18;
+    let received = get_balance(test_wallet, token);
+    let tax = 100 - ((received * 100) / sent);
+
+    return TokenMeta {
+        is_honeypot: false,
+        transfer_tax: tax as u8,
+        decimals: 18
+    };
+}
+```
+
+---
+
+STORAGE FORMAT:
+
+JSON (safe_tokens.json):
+```json
+{
+    "0x123...": { "is_honeypot": false, "transfer_tax": 1, "decimals": 18 },
+    "0x456...": { "is_honeypot": true,  "transfer_tax": 0, "decimals": 18 }
+}
+```
+
+---
+
+USAGE:
+
+- Load this JSON into RAM as DashMap on bot startup
+- Use in:
+    - simulate_swap_path
+    - route_finder
+    - arbitrage_finder
+
+---
+
+BENEFITS:
+
+- ✅ Avoids scam/honeypot tokens
+- ✅ Accurately adjusts slippage based on real tax
+- ✅ One-time check per token
+- ✅ RAM-fast classification
+
+---
+
+TIPS:
+
+- Only test new tokens that don’t exist in cache
+- Re-test tokens every 24 hours (optional)
+- Parallelize safety checks with Rayon or Tokio
+
+---
+
+RESTRICTIONS:
+
+- Never use tokens with is_honeypot = true
+- Always apply `transfer_tax` per hop simulation

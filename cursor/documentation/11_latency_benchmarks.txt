@@ -1,0 +1,73 @@
+
+MODULE: 11_latency_benchmarks
+GOAL: Define expected latency ranges for each major stage of the arbitrage bot to ensure ultra-low-latency operation and quick response to on-chain changes.
+
+---
+
+SYSTEM TARGET:
+
+- CPU: Intel i9-14900K
+- RAM: 128GB DDR5
+- Node: Local Geth full node (WS enabled)
+- Design: 100% in-RAM execution, no DB, no disk reads
+
+---
+
+LATENCY TARGETS PER STAGE:
+
+| Stage                     | Expected Time | Notes                                      |
+|---------------------------|----------------|--------------------------------------------|
+| Load Graph (initial)      | < 10ms         | From JSONL + index to memory               |
+| Reserve Preload           | < 50ms         | Parallelized RPC fetching using Tokio/Rayon|
+| WS Event Detection        | < 1ms latency  | Event-based via local Geth WebSocket       |
+| Cache Update              | < 2ms          | DashMap write                              |
+| Arbitrage Trigger (spawn) | < 1ms          | Non-blocking spawn                         |
+| Route Finding (DFS)       | < 30ms         | Max depth 4, memoized, parallelized        |
+| Swap Simulation           | < 10ms         | SIMD-ready path evaluation                 |
+| callStatic TX Check       | < 100ms        | Fast simulation before signing             |
+| TX Sign + Submit          | < 50ms         | Using local key + direct RPC               |
+| Total Detection → TX      | < 150ms        | Full pipeline from event to tx_hash        |
+
+---
+
+RECOMMENDED SLIPPAGE SETTING:
+
+- For <150ms latency:
+    - slippage_bps: 30–50 (0.3%–0.5%)
+    - Use callStatic before sending to guarantee
+
+---
+
+BENCHMARKING TOOLS:
+
+- Use `tokio::time::Instant::now()` for timing stages
+- Print latency per step for profiling
+- Compare against baseline regularly
+
+---
+
+ALERTS (OPTIONAL):
+
+- Trigger log alert if:
+    - Route Finding > 50ms
+    - Simulation > 20ms
+    - TX Submit > 100ms
+
+---
+
+PERFORMANCE OPTIMIZATION TIPS:
+
+- Preload as much as possible
+- Always parallelize I/O-bound tasks
+- Avoid Mutex or blocking calls in hot path
+- Pin critical tasks to P-Cores only
+
+---
+
+SUMMARY:
+
+This latency budget allows the bot to:
+- React instantly to real-time swaps
+- Run simulations in parallel
+- Beat public mempool bots
+- Stay safe using callStatic + filtering

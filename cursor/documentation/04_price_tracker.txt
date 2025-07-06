@@ -1,0 +1,102 @@
+
+MODULE: 04_price_tracker
+GOAL: Listen to real-time on-chain events from the local full node and update pool reserves in the ReserveCache immediately when liquidity changes.
+
+---
+
+ARCHITECTURE:
+
+- Connect to local Geth node via WebSocket.
+- Subscribe to:
+    - V2: `Swap` and `Sync` events
+    - V3: `Swap` event
+- Update only the affected pool in memory (no disk access).
+
+---
+
+WS EVENT SUBSCRIPTION:
+
+For V2:
+- `Sync` event: triggered on liquidity update
+    - Inputs: reserve0, reserve1
+- `Swap` event: also usable to detect direction (optional)
+
+For V3:
+- `Swap` event used to trigger fetch:
+    - Read `slot0()` and `liquidity()` again
+    - Refresh cache state
+
+---
+
+CACHE UPDATE FLOW:
+
+```rust
+async fn handle_sync_event(event: SyncEvent) {
+    let pool = event.address;
+    let reserves = decode_sync(event.data);
+
+    if let Some(mut state) = reserve_cache.get_mut(&pool) {
+        state.reserve0 = Some(reserves.0);
+        state.reserve1 = Some(reserves.1);
+        state.last_updated = current_unix_time();
+    }
+}
+```
+
+For V3:
+```rust
+async fn handle_v3_swap_event(pool: H160) {
+    let slot0 = get_slot0(pool).await?;
+    let liquidity = get_liquidity(pool).await?;
+
+    if let Some(mut state) = reserve_cache.get_mut(&pool) {
+        state.sqrt_price_x96 = Some(slot0.sqrt_price_x96);
+        state.tick = Some(slot0.tick);
+        state.liquidity = Some(liquidity);
+        state.last_updated = current_unix_time();
+    }
+}
+```
+
+---
+
+SPAWN PRICE TRACKER:
+
+```rust
+tokio::spawn(async move {
+    let ws = connect_ws().await?;
+    let v2_filter = build_event_filter("Sync", V2_FACTORIES);
+    let v3_filter = build_event_filter("Swap", V3_POOLS);
+
+    ws.on_event(v2_filter, handle_sync_event);
+    ws.on_event(v3_filter, handle_v3_swap_event);
+});
+```
+
+---
+
+BENEFITS:
+
+- ✅ Ultra-low-latency response to real swaps
+- ✅ Keeps reserve cache fresh
+- ✅ Allows simulate_swap_path() to work with 100% accurate state
+- ✅ No delay, no loop — event-driven model
+
+---
+
+DESIGN CHOICES:
+
+- Don’t batch update – update only the affected pool.
+- Don’t wait for arbitrage_finder to complete — spawn it asynchronously.
+- Ensure all updates are thread-safe via DashMap.
+
+---
+
+FUTURE EXPANSIONS:
+
+- Add event-based trigger for arbitrage_finder.
+- Handle edge cases like reorgs or duplicate events.
+- Add log deduplication if needed.
+
+REQUIREMENT:
+This must run before bot starts finding arbitrage.

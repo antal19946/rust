@@ -1,0 +1,113 @@
+
+MODULE: 10_executor
+GOAL: Safely and efficiently execute profitable arbitrage routes using a pre-built router transaction with slippage protection, nonce management, and gas tuning.
+
+---
+
+ENTRY CONDITIONS:
+
+The route should only be passed to the executor if:
+- simulate_swap_path confirms profit
+- All tokens in route are safe
+- callStatic on the full route passes successfully
+
+---
+
+TX CONSTRUCTION STEPS:
+
+1. Encode router function (based on path):
+```rust
+let calldata = router.encode(
+    "swapExactTokensForTokensSupportingFeeOnTransferTokens",
+    [amount_in, amount_out_min, path, to, deadline]
+);
+```
+
+2. Apply slippage buffer:
+```rust
+let min_out = final_out * (10000 - slippage_bps) / 10000;
+```
+
+3. Build raw transaction:
+```rust
+let tx = TransactionRequest::new()
+    .to(router_address)
+    .data(calldata)
+    .gas(gas_limit)
+    .gas_price(gas_price)
+    .value(0)
+    .nonce(current_nonce);
+```
+
+---
+
+OPTIONAL CHECK (STATIC CALL):
+
+```rust
+let success = provider.call(&tx, Some(BlockId::Latest)).await;
+if success.is_err() {
+    return; // Don't execute
+}
+```
+
+---
+
+SIGN & SEND:
+
+```rust
+let signed_tx = wallet.sign_transaction(&tx).await?;
+let tx_hash = provider.send_raw_transaction(signed_tx).await?;
+```
+
+---
+
+NONCE MANAGEMENT:
+
+- Use local cache for nonce tracking
+- Update immediately after sending tx
+- Optional: Fetch from chain every N seconds for safety
+
+---
+
+GAS STRATEGY:
+
+- Use legacy gas or EIP-1559 depending on chain
+- Add priority fee for faster inclusion
+- Pre-tune gas based on route complexity
+
+---
+
+OUTPUT:
+
+Executor returns:
+```rust
+ExecutionResult {
+    tx_hash: H256,
+    profit: U256,
+    success: bool
+}
+```
+
+---
+
+RESTRICTIONS:
+
+- Never retry failed tx
+- Always check callStatic before real tx
+- No unwraps during tx signing
+
+---
+
+SECURITY TIPS:
+
+- Add maxGas filter to avoid gas bombs
+- Reject unsafe pool/token routes
+- Only route with guaranteed profit > gasCost
+
+---
+
+BENEFITS:
+
+- ✅ Safe execution with callStatic dry-run
+- ✅ Fast submission via local node
+- ✅ Slippage-safe, tax-safe, nonce-aware
