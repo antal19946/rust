@@ -1,0 +1,78 @@
+{
+  "best_route": {
+    "buy_path_hops": [
+      79,
+      1,
+      22597
+    ],
+    "merged_amounts": [
+      "112029220235357077715",
+      "155208697967187903",
+      "6486250994547520794831146",
+      "145058458537563200202"
+    ],
+    "merged_pools": [
+      "0x469efaaadb06b5f4618ed1907aba380411f9a200",
+      "0x2d17631026c66c9a05a5a3e240a8a0d9d7382f3f",
+      "0x7733140504ab375be89774dd8f2e1ca1ce09e88c"
+    ],
+    "merged_symbols": [
+      "0xe9e7cea3dedca5984780bafc599bd69add087d56",
+      "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+      "0x509a51394cc4d6bb474fefb2994b8975a55a6e79",
+      "0xe9e7cea3dedca5984780bafc599bd69add087d56"
+    ],
+    "profit": "33029238302206122487",
+    "sell_path_hops": [
+      22597,
+      79
+    ]
+  },
+  "block_number": 53165008,
+  "estimated_profit": "33029238302206122487",
+  "pool_address": "0x2d17631026c66c9a05a5a3e240a8a0d9d7382f3f",
+  "profitable_routes_count": 1,
+  "source": "price_tracker",
+  "timestamp": "2025-07-07T06:59:33.241241960+00:00",
+  "token_x": "0x509a51394cc4d6bb474fefb2994b8975a55a6e79",
+  "token_x_amount": "6486250994547520794831146"
+}
+{
+  "best_route": {
+    "buy_path_hops": [
+      79,
+      1
+    ],
+    "merged_amounts": [
+      "112739990581005026771",
+      "156106956756183217",
+      "6042831198039236015715266",
+      "137666220015390545936"
+    ],
+    "merged_pools": [
+      "0x469efaaadb06b5f4618ed1907aba380411f9a200",
+      "0x2d17631026c66c9a05a5a3e240a8a0d9d7382f3f",
+      "0x7733140504ab375be89774dd8f2e1ca1ce09e88c"
+    ],
+    "merged_symbols": [
+      "0xe9e7cea3dedca5984780bafc599bd69add087d56",
+      "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+      "0x509a51394cc4d6bb474fefb2994b8975a55a6e79",
+      "0xe9e7cea3dedca5984780bafc599bd69add087d56"
+    ],
+    "profit": "24926229434385519165",
+    "sell_path_hops": [
+      1,
+      22597,
+      79
+    ]
+  },
+  "block_number": 53165008,
+  "estimated_profit": "24926229434385519165",
+  "pool_address": "0x2d17631026c66c9a05a5a3e240a8a0d9d7382f3f",
+  "profitable_routes_count": 1,
+  "source": "price_tracker",
+  "timestamp": "2025-07-07T06:59:33.242085587+00:00",
+  "token_x": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+  "token_x_amount": "156106956756183217"
+}

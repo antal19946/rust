@@ -24,7 +24,7 @@ pub struct SimulatedRoute {
 /// Helper to map token index to symbol (extend as needed)
 pub fn token_index_to_symbol(idx: u32, token_index: &TokenIndexMap) -> String {
     // Try to get address, then symbol from config or fallback
-    if let Some(addr) = token_index.index_to_address.get(&(idx as u16)) {
+    if let Some(addr) = token_index.index_to_address.get(&(idx as u32)) {
         // Return complete address instead of truncated version
         format!("0x{:x}", addr)
     } else {

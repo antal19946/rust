@@ -27,9 +27,27 @@ pub struct PairInfo {
     pub token1: Address,
     pub dex_name: String,
     pub dex_version: DexVersion,
+    #[serde(default)]
     pub factory_address: Address,
+    #[serde(default)]
     pub block_number: u64,
+    #[serde(default)]
     pub transaction_hash: String,
+    // Optional fields that might be in JSON files
+    #[serde(default)]
+    pub token0_symbol: Option<String>,
+    #[serde(default)]
+    pub token1_symbol: Option<String>,
+    #[serde(default)]
+    pub token0_decimals: Option<u8>,
+    #[serde(default)]
+    pub token1_decimals: Option<u8>,
+    #[serde(default)]
+    pub liquidity_usd: Option<f64>,
+    #[serde(default)]
+    pub reserve0: Option<String>,
+    #[serde(default)]
+    pub reserve1: Option<String>,
 }
 
 /// Progress tracking for each factory
@@ -133,7 +151,7 @@ impl PairFetcher {
     /// Save pair to appropriate file (V2 or V3)
     fn save_pair(&self, pair: &PairInfo) -> Result<()> {
         // Only save if token0 or token1 is in safe_tokens
-        if !self.safe_tokens.contains(&pair.token0) || !self.safe_tokens.contains(&pair.token1) {
+        if !self.safe_tokens.contains(&pair.token0) && !self.safe_tokens.contains(&pair.token1) {
             return Ok(()); // skip
         }
         let file_path = match pair.dex_version {
@@ -282,6 +300,13 @@ impl PairFetcher {
             factory_address: dex.factory_address,
             block_number: log.block_number.unwrap().as_u64(),
             transaction_hash: format!("0x{}", hex::encode(log.transaction_hash.unwrap())),
+            token0_symbol: None,
+            token1_symbol: None,
+            token0_decimals: None,
+            token1_decimals: None,
+            liquidity_usd: None,
+            reserve0: None,
+            reserve1: None,
         };
         
         Ok(Some(pair_info))
@@ -316,6 +341,13 @@ impl PairFetcher {
             factory_address: dex.factory_address,
             block_number: log.block_number.unwrap().as_u64(),
             transaction_hash: format!("0x{}", hex::encode(log.transaction_hash.unwrap())),
+            token0_symbol: None,
+            token1_symbol: None,
+            token0_decimals: None,
+            token1_decimals: None,
+            liquidity_usd: None,
+            reserve0: None,
+            reserve1: None,
         };
         
         Ok(Some(pair_info))
@@ -418,6 +450,13 @@ mod tests {
             factory_address: Address::random(),
             block_number: 12345,
             transaction_hash: "0x1234567890abcdef".to_string(),
+            token0_symbol: None,
+            token1_symbol: None,
+            token0_decimals: None,
+            token1_decimals: None,
+            liquidity_usd: None,
+            reserve0: None,
+            reserve1: None,
         };
         
         let json = serde_json::to_string(&pair).unwrap();

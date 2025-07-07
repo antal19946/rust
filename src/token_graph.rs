@@ -7,14 +7,14 @@ use crate::token_index::TokenIndexMap;
 
 #[derive(Clone, Debug)]
 pub struct GraphEdge {
-    pub to: u16,              // destination token index
+    pub to: u32,              // destination token index
     pub pool: H160,           // pool address
     pub pool_type: PoolType,  // V2 or V3
 }
 
 #[derive(Debug)]
 pub struct TokenGraph {
-    pub edges: DashMap<u16, Vec<GraphEdge>>, // token_index → list of outgoing edges
+    pub edges: DashMap<u32, Vec<GraphEdge>>, // token_index → list of outgoing edges
 }
 
 impl TokenGraph {

@@ -1,0 +1,78 @@
+{
+  "best_route": {
+    "buy_path_hops": [
+      79,
+      1
+    ],
+    "merged_amounts": [
+      "671930709314048947",
+      "1019370918976747",
+      "75752106534188734595",
+      "674438221761859572"
+    ],
+    "merged_pools": [
+      "0x469efaaadb06b5f4618ed1907aba380411f9a200",
+      "0x55f303a94b8b085917459ae7e0b252b0e20b5add",
+      "0x3b672190bc166a72bf146994151513773af1db86"
+    ],
+    "merged_symbols": [
+      "0xe9e7cea3dedca5984780bafc599bd69add087d56",
+      "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+      "0xc703da39ae3b9db67c207c7bad8100e1afdc0f9c",
+      "0xe9e7cea3dedca5984780bafc599bd69add087d56"
+    ],
+    "profit": "2507512447810625",
+    "sell_path_hops": [
+      1,
+      14256,
+      79
+    ]
+  },
+  "block_number": 53164948,
+  "estimated_profit": "2507512447810625",
+  "pool_address": "0x55f303a94b8b085917459ae7e0b252b0e20b5add",
+  "profitable_routes_count": 1,
+  "source": "price_tracker",
+  "timestamp": "2025-07-07T06:58:49.173210408+00:00",
+  "token_x": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+  "token_x_amount": "1019370918976747"
+}
+{
+  "best_route": {
+    "buy_path_hops": [
+      79,
+      1,
+      14256
+    ],
+    "merged_amounts": [
+      "672161822919414554",
+      "1019721335111973",
+      "75778142399964757130",
+      "674025893854709496"
+    ],
+    "merged_pools": [
+      "0x469efaaadb06b5f4618ed1907aba380411f9a200",
+      "0x55f303a94b8b085917459ae7e0b252b0e20b5add",
+      "0x3b672190bc166a72bf146994151513773af1db86"
+    ],
+    "merged_symbols": [
+      "0xe9e7cea3dedca5984780bafc599bd69add087d56",
+      "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+      "0xc703da39ae3b9db67c207c7bad8100e1afdc0f9c",
+      "0xe9e7cea3dedca5984780bafc599bd69add087d56"
+    ],
+    "profit": "1864070935294942",
+    "sell_path_hops": [
+      14256,
+      79
+    ]
+  },
+  "block_number": 53164948,
+  "estimated_profit": "1864070935294942",
+  "pool_address": "0x3b672190bc166a72bf146994151513773af1db86",
+  "profitable_routes_count": 1,
+  "source": "price_tracker",
+  "timestamp": "2025-07-07T06:58:49.173439755+00:00",
+  "token_x": "0xc703da39ae3b9db67c207c7bad8100e1afdc0f9c",
+  "token_x_amount": "75778142399964757130"
+}

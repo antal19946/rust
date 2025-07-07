@@ -11,6 +11,8 @@ use ethers::types::Address;
 use std::sync::Arc;
 use futures::stream::{self, StreamExt};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use rayon::prelude::*;
+use futures::stream::{FuturesUnordered};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PoolType {
@@ -69,95 +71,114 @@ pub struct TokenMeta {
     // Add more fields as needed
 }
 
-/// Preload all reserves and state for all pools into the ReserveCache.
+/// Helper async function to fetch reserve for a single pair
+async fn fetch_reserve(
+    pair: PairInfo,
+    provider: Arc<Provider<Http>>,
+) -> Option<(H160, PoolState)> {
+    let address = pair.pair_address;
+    let token0 = pair.token0;
+    let token1 = pair.token1;
+    let now = chrono::Utc::now().timestamp() as u64;
+    match pair.dex_version {
+        DexVersion::V2 => {
+            let contract = UniswapV2Pair::new(address, provider.clone());
+            match contract.get_reserves().call().await {
+                Ok(res) => {
+                    Some((address, PoolState {
+                        pool_type: PoolType::V2,
+                        token0,
+                        token1,
+                        reserve0: Some(res.0.into()),
+                        reserve1: Some(res.1.into()),
+                        sqrt_price_x96: None,
+                        liquidity: None,
+                        tick: None,
+                        fee: None,
+                        tick_spacing: None,
+                        last_updated: now,
+                    }))
+                }
+                Err(_) => None,
+            }
+        }
+        DexVersion::V3 => {
+            let contract = UniswapV3Pool::new(address, provider.clone());
+            let slot0_res = contract.slot_0().call().await;
+            let liquidity_res = contract.liquidity().call().await;
+            match (slot0_res, liquidity_res) {
+                (Ok(slot0), Ok(liq)) => {
+                    // Use default values for fee and tick_spacing for now
+                    let fee = 3000;
+                    let tick_spacing = 60;
+                    Some((address, PoolState {
+                        pool_type: PoolType::V3,
+                        token0,
+                        token1,
+                        reserve0: None,
+                        reserve1: None,
+                        sqrt_price_x96: Some(slot0.0.into()),
+                        liquidity: Some(liq.into()),
+                        tick: Some(slot0.1),
+                        fee: Some(fee),
+                        tick_spacing: Some(tick_spacing),
+                        last_updated: now,
+                    }))
+                }
+                _ => None,
+            }
+        }
+    }
+}
+
+/// Preload all reserves and state for all pools into the ReserveCache using batching and rayon
 pub async fn preload_reserve_cache(
     pairs: &[PairInfo],
     provider: Arc<Provider<Http>>,
     reserve_cache: &Arc<ReserveCache>,
-    max_concurrent: usize,
+    _max_concurrent: usize,
 ) {
-    static SUCCESS_COUNT: AtomicUsize = AtomicUsize::new(0);
-    static ERROR_COUNT: AtomicUsize = AtomicUsize::new(0);
+    let batch_size = 1000;
+    let total_pairs = pairs.len();
+    let start_time = std::time::Instant::now();
+    println!("[CACHE] Starting preload for {} pairs in batches of {}", total_pairs, batch_size);
+    let mut success_count = 0;
+    let mut error_count = 0;
+    let mut v2_loaded = 0;
+    let mut v3_loaded = 0;
 
-    stream::iter(pairs.iter().cloned())
-        .for_each_concurrent(max_concurrent, |pair| {
+    for (i, batch) in pairs.chunks(batch_size).enumerate() {
+        println!("[CACHE] Processing batch {} ({} pairs)", i + 1, batch.len());
+        // 1. Fetch all reserves in parallel (async)
+        let mut futs = FuturesUnordered::new();
+        for pair in batch.iter().cloned() {
             let provider = provider.clone();
-            let reserve_cache = reserve_cache.clone();
-            async move {
-                let address = pair.pair_address;
-                let token0 = pair.token0;
-                let token1 = pair.token1;
-                let now = chrono::Utc::now().timestamp() as u64;
-                match pair.dex_version {
-                    DexVersion::V2 => {
-                        let contract = UniswapV2Pair::new(address, provider.clone());
-                        match contract.get_reserves().call().await {
-                            Ok(res) => {
-                                let n = SUCCESS_COUNT.fetch_add(1, Ordering::Relaxed);
-                                if n < 5 {
-                                    println!("[V2] Loaded reserves for {:?}: ({}, {})", address, res.0, res.1);
-                                }
-                                reserve_cache.insert(address, PoolState {
-                                    pool_type: PoolType::V2,
-                                    token0,
-                                    token1,
-                                    reserve0: Some(res.0.into()),
-                                    reserve1: Some(res.1.into()),
-                                    sqrt_price_x96: None,
-                                    liquidity: None,
-                                    tick: None,
-                                    fee: None,
-                                    tick_spacing: None,
-                                    last_updated: now,
-                                });
-                            }
-                            Err(e) => {
-                                let n = ERROR_COUNT.fetch_add(1, Ordering::Relaxed);
-                                if n < 5 {
-                                    eprintln!("[V2] Error loading reserves for {:?}: {}", address, e);
-                                }
-                            }
-                        }
-                    }
-                    DexVersion::V3 => {
-                        let contract = UniswapV3Pool::new(address, provider.clone());
-                        let slot0_res = contract.slot_0().call().await;
-                        let liquidity_res = contract.liquidity().call().await;
-                        let spacing_res = contract.tick_spacing().call().await;
-                        let fee_res = contract.fee().call().await;
-                        println!("[V3][RESERVE][DEBUG] Pool {:?} (token0={:?}, token1={:?}) slot0_res={:?} liquidity_res={:?} tick_spacing={:?} fee={:?}", address, token0, token1, slot0_res, liquidity_res, spacing_res, fee_res);
-                        match (&slot0_res, &liquidity_res) {
-                            (Ok(slot0), Ok(liq)) => {
-                                let n = SUCCESS_COUNT.fetch_add(1, Ordering::Relaxed);
-                                if n < 5 {
-                                    println!("[V3] Loaded slot0/liquidity for {:?}: sqrtPriceX96={}, tick={}, liquidity={}, tick_spacing={:?}, fee={:?}", address, slot0.0, slot0.1, liq, spacing_res, fee_res);
-                                }
-                                reserve_cache.insert(address, PoolState {
-                                    pool_type: PoolType::V3,
-                                    token0,
-                                    token1,
-                                    reserve0: None,
-                                    reserve1: None,
-                                    sqrt_price_x96: Some(slot0.0.into()),
-                                    liquidity: Some((*liq).into()),
-                                    tick: Some(slot0.1),
-                                    fee: fee_res.ok().map(|x| x as u32),
-                                    tick_spacing: spacing_res.ok().map(|x| x as i32),
-                                    last_updated: now,
-                                });
-                            }
-                            _ => {
-                                let n = ERROR_COUNT.fetch_add(1, Ordering::Relaxed);
-                                eprintln!("[V3][ERROR] Pool {:?} (token0={:?}, token1={:?}) slot0_res={:?} liquidity_res={:?}", address, token0, token1, slot0_res, liquidity_res);
-                            }
-                        }
-                    }
-                }
+            futs.push(fetch_reserve(pair, provider));
+        }
+        let mut results = Vec::with_capacity(batch.len());
+        while let Some(res) = futs.next().await {
+            results.push(res);
+        }
+        // 2. Process results in parallel (Rayon)
+        results.par_iter().for_each(|res| {
+            if let Some((address, state)) = res {
+                reserve_cache.insert(*address, state.clone());
             }
-        })
-        .await;
-    println!("[DEBUG] Total successful loads: {}", SUCCESS_COUNT.load(Ordering::Relaxed));
-    println!("[DEBUG] Total errors: {}", ERROR_COUNT.load(Ordering::Relaxed));
-    let v3_loaded = reserve_cache.iter().filter(|e| e.value().pool_type == PoolType::V3).count();
-    println!("[DEBUG] V3 pools loaded in cache: {}", v3_loaded);
+        });
+        // 3. Stats
+        let batch_success = results.iter().filter(|x| x.is_some()).count();
+        let batch_error = results.len() - batch_success;
+        let batch_v2 = results.iter().filter(|x| x.as_ref().map(|(_, s)| s.pool_type == PoolType::V2).unwrap_or(false)).count();
+        let batch_v3 = results.iter().filter(|x| x.as_ref().map(|(_, s)| s.pool_type == PoolType::V3).unwrap_or(false)).count();
+        success_count += batch_success;
+        error_count += batch_error;
+        v2_loaded += batch_v2;
+        v3_loaded += batch_v3;
+        println!("[CACHE][BATCH {}] Success: {}, Errors: {}, V2: {}, V3: {}", i + 1, batch_success, batch_error, batch_v2, batch_v3);
+    }
+    let duration = start_time.elapsed();
+    println!("[CACHE] Preload completed in {:.2?}", duration);
+    println!("[CACHE] Success: {}, Errors: {}, Total: {}", success_count, error_count, total_pairs);
+    println!("[CACHE] V2 pools: {}, V3 pools: {}", v2_loaded, v3_loaded);
+    println!("[CACHE] Average speed: {:.2} pools/sec", total_pairs as f64 / duration.as_secs_f64());
 }

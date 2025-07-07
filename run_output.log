@@ -1,0 +1,733 @@
+warning: unused import: `std::collections::HashMap`
+ --> src/config.rs:1:5
+  |
+1 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `BufRead` and `BufReader`
+ --> src/fetch_pairs.rs:3:15
+  |
+3 | use std::io::{BufRead, BufReader, BufWriter, Write};
+  |               ^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `anyhow`
+ --> src/fetch_pairs.rs:8:14
+  |
+8 | use anyhow::{anyhow, Result};
+  |              ^^^^^^
+
+warning: unused import: `ethers::types::Address`
+  --> src/cache.rs:10:5
+   |
+10 | use ethers::types::Address;
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `self`
+  --> src/cache.rs:12:23
+   |
+12 | use futures::stream::{self, StreamExt};
+   |                       ^^^^
+
+warning: unused imports: `AtomicUsize` and `Ordering`
+  --> src/cache.rs:13:25
+   |
+13 | use std::sync::atomic::{AtomicUsize, Ordering};
+   |                         ^^^^^^^^^^^  ^^^^^^^^
+
+warning: unused import: `UniswapV3Pool`
+ --> src/price_tracker.rs:5:23
+  |
+5 | use crate::bindings::{UniswapV3Pool};
+  |                       ^^^^^^^^^^^^^
+
+warning: unused imports: `Datelike` and `Timelike`
+  --> src/price_tracker.rs:18:29
+   |
+18 | use chrono::{DateTime, Utc, Datelike, Timelike};
+   |                             ^^^^^^^^  ^^^^^^^^
+
+warning: unused import: `GraphEdge`
+ --> src/best_route_finder.rs:2:38
+  |
+2 | use crate::token_graph::{TokenGraph, GraphEdge};
+  |                                      ^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> src/token_graph.rs:3:5
+  |
+3 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::f64::consts::E`
+ --> src/utils.rs:4:5
+  |
+4 | use std::f64::consts::E;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `DEXType`
+ --> src/simulate_swap_path.rs:2:37
+  |
+2 | use crate::route_cache::{RoutePath, DEXType};
+  |                                     ^^^^^^^
+
+warning: unused imports: `Q96`, `calculate_v3_buy_amount`, `mul_div`, and `sqrt_price_x96_to_price`
+ --> src/simulate_swap_path.rs:5:22
+  |
+5 | ...::{Q96, mul_div, simulate_v3_swap, calculate_v3_buy_amount, sqrt_price_x96_to_price};
+  |       ^^^  ^^^^^^^                    ^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `primitive_types::U256 as PrimitiveU256`
+ --> src/v3_math.rs:2:5
+  |
+2 | use primitive_types::U256 as PrimitiveU256;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `simulate_all_paths_for_token_x`
+ --> src/mempool_decoder.rs:1:31
+  |
+1 | use crate::arbitrage_finder::{simulate_all_paths_for_token_x, SimulatedRoute};
+  |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::types::Filter`
+  --> src/mempool_decoder.rs:12:5
+   |
+12 |     core::types::Filter,
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Datelike`
+  --> src/mempool_decoder.rs:21:29
+   |
+21 | use chrono::{DateTime, Utc, Datelike, Timelike};
+   |                             ^^^^^^^^
+
+warning: unused import: `std::time::Duration`
+  --> src/main.rs:24:5
+   |
+24 | use std::time::Duration;
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `dashmap::DashMap`
+  --> src/main.rs:25:5
+   |
+25 | use dashmap::DashMap;
+   |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+  --> src/main.rs:26:5
+   |
+26 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ethers::types::H160`
+  --> src/main.rs:27:5
+   |
+27 | use ethers::types::H160;
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `once_cell::sync::Lazy`
+  --> src/main.rs:28:5
+   |
+28 | use once_cell::sync::Lazy;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::RwLock`
+  --> src/main.rs:29:5
+   |
+29 | use std::sync::RwLock;
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `RoutePath`
+  --> src/main.rs:32:57
+   |
+32 | use route_cache::{build_route_cache, PoolMeta, DEXType, RoutePath};
+   |                                                         ^^^^^^^^^
+
+warning: unused import: `MempoolDecoder`
+  --> src/main.rs:36:49
+   |
+36 | use mempool_decoder::{start_mempool_monitoring, MempoolDecoder};
+   |                                                 ^^^^^^^^^^^^^^
+
+warning: unused import: `populate_best_routes_for_all_tokens`
+   --> src/main.rs:126:29
+    |
+126 |     use best_route_finder::{populate_best_routes_for_all_tokens, BestRoute};
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unreachable expression
+   --> src/price_tracker.rs:409:5
+    |
+362 | /     loop {
+363 | |         match tokio::time::timeout(
+364 | |             tokio::time::Duration::from_secs(10),
+365 | |             v3_stream.next()
+...   |
+407 | |     }
+    | |_____- any code following this expression is unreachable
+408 |       
+409 |       Err("V3 stream ended unexpectedly".into())
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unreachable expression
+    |
+    = note: `#[warn(unreachable_code)]` on by default
+
+warning: value assigned to `last_activity` is never read
+   --> src/price_tracker.rs:359:13
+    |
+359 |     let mut last_activity = std::time::Instant::now();
+    |             ^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: unreachable expression
+   --> src/price_tracker.rs:569:5
+    |
+538 |     return Ok(());
+    |     ------------- any code following this expression is unreachable
+...
+569 |     Ok(())
+    |     ^^^^^^ unreachable expression
+
+warning: unused variable: `token_index`
+   --> src/price_tracker.rs:498:5
+    |
+498 |     token_index: &Arc<TokenIndexMap>,
+    |     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_token_index`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `precomputed_route_cache`
+   --> src/price_tracker.rs:499:5
+    |
+499 |     precomputed_route_cache: &Arc<DashMap<u32, Vec<RoutePath>>>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_precomputed_route_cache`
+
+warning: unused variable: `opportunity_tx`
+   --> src/price_tracker.rs:500:5
+    |
+500 |     opportunity_tx: &mpsc::Sender<ArbitrageOpportunity>,
+    |     ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_opportunity_tx`
+
+warning: unused import: `Middleware`
+ --> src/cache.rs:9:35
+  |
+9 | use ethers::providers::{Provider, Middleware, Http};
+  |                                   ^^^^^^^^^^
+
+warning: unused import: `rayon::prelude`
+  --> src/main.rs:37:5
+   |
+37 | use rayon::prelude::*;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused variable: `is_forward`
+  --> src/utils.rs:13:5
+   |
+13 |     is_forward: bool,
+   |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_is_forward`
+
+warning: unused variable: `is_forward`
+  --> src/utils.rs:54:5
+   |
+54 |     is_forward: bool,
+   |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_is_forward`
+
+warning: unused variable: `token1_idx`
+  --> src/simulate_swap_path.rs:85:13
+   |
+85 |         let token1_idx = *token_index_map.address_to_index.get(&entry.token1)? as ...
+   |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_token1_idx`
+
+warning: unused variable: `token1_idx`
+   --> src/simulate_swap_path.rs:192:13
+    |
+192 |         let token1_idx = *token_index_map.address_to_index.get(&entry.token1)? as...
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_token1_idx`
+
+warning: unused variable: `token1_idx`
+   --> src/simulate_swap_path.rs:465:13
+    |
+465 |         let token1_idx = *token_index_map.address_to_index.get(&entry.token1)? as...
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_token1_idx`
+
+warning: unused variable: `output_token`
+   --> src/simulate_swap_path.rs:467:13
+    |
+467 |         let output_token = route.hops[i + 1];
+    |             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_output_token`
+
+warning: unused variable: `token1_idx`
+   --> src/simulate_swap_path.rs:526:13
+    |
+526 |         let token1_idx = *token_index_map.address_to_index.get(&entry.token1)? as...
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_token1_idx`
+
+warning: unused variable: `output_token`
+   --> src/simulate_swap_path.rs:528:13
+    |
+528 |         let output_token = route.hops[i + 1];
+    |             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_output_token`
+
+warning: unused variable: `token1_idx`
+   --> src/simulate_swap_path.rs:581:13
+    |
+581 |         let token1_idx = *token_index_map.address_to_index.get(&entry.token1)? as...
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_token1_idx`
+
+warning: unused variable: `output_token`
+   --> src/simulate_swap_path.rs:583:13
+    |
+583 |         let output_token = route.hops[i + 1];
+    |             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_output_token`
+
+warning: unused variable: `amounts`
+   --> src/simulate_swap_path.rs:627:13
+    |
+627 |     let mut amounts: Vec<U256> = Vec::with_capacity(route.hops.len());
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_amounts`
+
+warning: unused variable: `token1_idx`
+   --> src/simulate_swap_path.rs:638:13
+    |
+638 |         let token1_idx = *token_index_map.address_to_index.get(&entry.token1)? as...
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_token1_idx`
+
+warning: unused variable: `output_token`
+   --> src/simulate_swap_path.rs:640:13
+    |
+640 |         let output_token = route.hops[i + 1];
+    |             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_output_token`
+
+warning: variable does not need to be mutable
+   --> src/simulate_swap_path.rs:627:9
+    |
+627 |     let mut amounts: Vec<U256> = Vec::with_capacity(route.hops.len());
+    |         ----^^^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: unused variable: `token0`
+   --> src/mempool_decoder.rs:332:13
+    |
+332 |         let token0 = pool_data.token0;
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_token0`
+
+warning: unused variable: `token_graph`
+   --> src/main.rs:134:9
+    |
+134 |     let token_graph = TokenGraph::build(&reserve_cache, &token_index_map);
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_token_graph`
+
+warning: unused variable: `tracked_tokens`
+   --> src/main.rs:146:17
+    |
+146 |             let tracked_tokens: Vec<u32> = token_index_map.index_to_address.keys(...
+    |                 ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_tracked_tokens`
+
+warning: methods `get_dex_by_name`, `get_base_token_by_symbol`, `get_base_token_by_address`, `get_v2_dexes`, `get_v3_dexes`, and `get_stable_tokens` are never used
+   --> src/config.rs:210:12
+    |
+208 | impl Config {
+    | ----------- methods in this implementation
+209 |     /// Get DEX by name
+210 |     pub fn get_dex_by_name(&self, name: &str) -> Option<&DexConfig> {
+    |            ^^^^^^^^^^^^^^^
+...
+215 |     pub fn get_base_token_by_symbol(&self, symbol: &str) -> Option<&BaseToken> {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+220 |     pub fn get_base_token_by_address(&self, address: Address) -> Option<&BaseToke...
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+225 |     pub fn get_v2_dexes(&self) -> Vec<&DexConfig> {
+    |            ^^^^^^^^^^^^
+...
+230 |     pub fn get_v3_dexes(&self) -> Vec<&DexConfig> {
+    |            ^^^^^^^^^^^^
+...
+235 |     pub fn get_stable_tokens(&self) -> Vec<&BaseToken> {
+    |            ^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: field `tick_spacing` is never read
+  --> src/cache.rs:40:9
+   |
+30 | pub struct PoolState {
+   |            --------- field in this struct
+...
+40 |     pub tick_spacing: Option<i32>,     // V3
+   |         ^^^^^^^^^^^^
+   |
+   = note: `PoolState` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: variants `V2` and `V3` are never constructed
+  --> src/cache.rs:48:5
+   |
+47 | pub enum DexType {
+   |          ------- variants in this enum
+48 |     V2,
+   |     ^^
+49 |     V3,
+   |     ^^
+   |
+   = note: `DexType` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: struct `Edge` is never constructed
+  --> src/cache.rs:53:12
+   |
+53 | pub struct Edge {
+   |            ^^^^
+   |
+   = note: `Edge` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: type alias `TokenIndex` is never used
+  --> src/cache.rs:60:10
+   |
+60 | pub type TokenIndex = HashMap<H160, usize>; // token address -> index
+   |          ^^^^^^^^^^
+
+warning: type alias `IndexToken` is never used
+  --> src/cache.rs:61:10
+   |
+61 | pub type IndexToken = Vec<H160>;            // index -> token address
+   |          ^^^^^^^^^^
+
+warning: type alias `FlatGraph` is never used
+  --> src/cache.rs:62:10
+   |
+62 | pub type FlatGraph = Vec<Vec<Edge>>;        // adjacency list: token index -> edges
+   |          ^^^^^^^^^
+
+warning: type alias `SafeTokenSet` is never used
+  --> src/cache.rs:64:10
+   |
+64 | pub type SafeTokenSet = HashSet<H160>;
+   |          ^^^^^^^^^^^^
+
+warning: fields `is_safe` and `has_transfer_tax` are never read
+  --> src/cache.rs:69:9
+   |
+68 | pub struct TokenMeta {
+   |            --------- fields in this struct
+69 |     pub is_safe: bool,
+   |         ^^^^^^^
+70 |     pub has_transfer_tax: bool,
+   |         ^^^^^^^^^^^^^^^^
+   |
+   = note: `TokenMeta` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: fields `hops`, `pools`, `dex_types`, and `output` are never read
+  --> src/best_route_finder.rs:15:9
+   |
+14 | pub struct RoutePath {
+   |            --------- fields in this struct
+15 |     pub hops: SmallVec<[u32; 4]>,
+   |         ^^^^
+16 |     pub pools: SmallVec<[H160; 3]>,
+   |         ^^^^^
+17 |     pub dex_types: SmallVec<[PoolType; 3]>,
+   |         ^^^^^^^^^
+18 |     pub output: f64,
+   |         ^^^^^^
+   |
+   = note: `RoutePath` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: struct `PartialRoute` is never constructed
+  --> src/best_route_finder.rs:28:12
+   |
+28 | pub struct PartialRoute {
+   |            ^^^^^^^^^^^^
+   |
+   = note: `PartialRoute` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: function `dfs_all_paths` is never used
+  --> src/best_route_finder.rs:34:8
+   |
+34 | pub fn dfs_all_paths(
+   |        ^^^^^^^^^^^^^
+
+warning: function `simulate_path` is never used
+  --> src/best_route_finder.rs:77:8
+   |
+77 | pub fn simulate_path(
+   |        ^^^^^^^^^^^^^
+
+warning: function `generate_best_routes_for_token` is never used
+   --> src/best_route_finder.rs:138:8
+    |
+138 | pub fn generate_best_routes_for_token(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `populate_best_routes_for_all_tokens` is never used
+   --> src/best_route_finder.rs:183:8
+    |
+183 | pub fn populate_best_routes_for_all_tokens(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `to`, `pool`, and `pool_type` are never read
+  --> src/token_graph.rs:10:9
+   |
+9  | pub struct GraphEdge {
+   |            --------- fields in this struct
+10 |     pub to: u32,              // destination token index
+   |         ^^
+11 |     pub pool: H160,           // pool address
+   |         ^^^^
+12 |     pub pool_type: PoolType,  // V2 or V3
+   |         ^^^^^^^^^
+   |
+   = note: `GraphEdge` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `edges` is never read
+  --> src/token_graph.rs:17:9
+   |
+16 | pub struct TokenGraph {
+   |            ---------- field in this struct
+17 |     pub edges: DashMap<u32, Vec<GraphEdge>>, // token_index → list of outgoing edges
+   |         ^^^^^
+   |
+   = note: `TokenGraph` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: function `simulate_v2_swap_safe` is never used
+ --> src/utils.rs:8:8
+  |
+8 | pub fn simulate_v2_swap_safe(
+  |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `simulate_v2_swap_reverse_safe` is never used
+  --> src/utils.rs:49:8
+   |
+49 | pub fn simulate_v2_swap_reverse_safe(
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `simulate_v3_swap_precise` is never used
+  --> src/utils.rs:89:8
+   |
+89 | pub fn simulate_v3_swap_precise(
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `route_index`, `buy_amounts_vec`, and `sell_amounts_vec` are never read
+  --> src/simulate_swap_path.rs:36:9
+   |
+35 | pub struct RouteSimulationResult {
+   |            --------------------- fields in this struct
+36 |     pub route_index: usize,
+   |         ^^^^^^^^^^^
+...
+41 |     pub buy_amounts_vec: Option<(Vec<U256>, Vec<U256>)>,
+   |         ^^^^^^^^^^^^^^^
+42 |     pub sell_amounts_vec: Option<(Vec<U256>, Vec<U256>)>,
+   |         ^^^^^^^^^^^^^^^^
+   |
+   = note: `RouteSimulationResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: function `mul_div` is never used
+ --> src/v3_math.rs:8:8
+  |
+8 | pub fn mul_div(a: U256, b: U256, denominator: U256) -> Option<U256> {
+  |        ^^^^^^^
+
+warning: function `price_to_sqrt_price_x96` is never used
+  --> src/v3_math.rs:37:8
+   |
+37 | pub fn price_to_sqrt_price_x96(price: f64) -> U256 {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `get_next_sqrt_price_from_output` is never used
+   --> src/v3_math.rs:246:8
+    |
+246 | pub fn get_next_sqrt_price_from_output(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `merged_tokens` is never read
+  --> src/arbitrage_finder.rs:16:9
+   |
+14 | pub struct SimulatedRoute {
+   |            -------------- field in this struct
+15 |     pub merged_amounts: Vec<U256>,      // [baseIn, ..., tokenX, ..., baseOut]
+16 |     pub merged_tokens: Vec<u32>,        // token indices for each hop
+   |         ^^^^^^^^^^^^^
+   |
+   = note: `SimulatedRoute` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `tx_hash` and `timestamp` are never read
+  --> src/mempool_decoder.rs:27:9
+   |
+26 | pub struct DecodedSwap {
+   |            ----------- fields in this struct
+27 |     pub tx_hash: H160,
+   |         ^^^^^^^
+...
+32 |     pub timestamp: u64,
+   |         ^^^^^^^^^
+   |
+   = note: `DecodedSwap` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `config` is never read
+  --> src/mempool_decoder.rs:50:5
+   |
+45 | pub struct MempoolDecoder {
+   |            -------------- field in this struct
+...
+50 |     config: Config,
+   |     ^^^^^^
+
+warning: methods `process_sync_event`, `decode_sync_event`, and `get_hourly_profit_summary` are never used
+   --> src/mempool_decoder.rs:274:14
+    |
+56  | impl MempoolDecoder {
+    | ------------------- methods in this implementation
+...
+274 |     async fn process_sync_event(&self, log: Log) -> Result<(), Box<dyn std::error...
+    |              ^^^^^^^^^^^^^^^^^^
+...
+371 |     async fn decode_sync_event(&self, log: &Log) -> Option<DecodedSwap> {
+    |              ^^^^^^^^^^^^^^^^^
+...
+591 |     pub fn get_hourly_profit_summary(&self) -> Result<String, Box<dyn std::error:...
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `pool_address` is never read
+   --> src/mempool_decoder.rs:636:5
+    |
+635 | struct SwapInfo {
+    |        -------- field in this struct
+636 |     pool_address: H160,
+    |     ^^^^^^^^^^^^
+    |
+    = note: `SwapInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `arb-rust-bot` (bin "arb-rust-bot") generated 80 warnings (run `cargo fix --bin "arb-rust-bot"` to apply 27 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running `target/debug/arb-rust-bot`
+🚀 Starting Ultra-Low Latency Arbitrage Bot...
+
+🧪 TESTING V3 MATH FIXES...
+🧪 Testing V3 Math Functions (Correct Uniswap V3)...
+Test values:
+  sqrtPriceX96: 79228162514264337593543950336
+  liquidity: 1000000000000000000
+  amount_in: 100000000000000000
+✅ V3 sell simulation (token0->token1): 100000000000000000 -> 90661089388014913
+✅ V3 buy calculation (token1->token0): 111445447453471526 needed for 100000000000000000
+  Cost: 111445447453471526 (111.44544745347152%)
+
+🔍 Testing Fee Calculation:
+  Input: 1000000000000000000
+  After 3000 bps fee: 997000000000000000 (0.3% fee applied)
+
+🔍 Testing with problematic pool values from log:
+  sqrtPriceX96: 79338033694141024166214253871
+  liquidity: 35815244315094858067783
+  Calculated price: 1.002775461638253
+❌ Problematic pool simulation failed
+
+🔍 Testing price direction logic:
+  Token0->Token1: Price 1 -> 0.8264462809917354 (decreased: true)
+  Token1->Token0: Price 1 -> 1.2100000000000002 (increased: true)
+
+🔍 Testing exact output calculation (token1->token0):
+  To get 100000000000000000 token0, need 111445447453471526 token1
+
+✅ V3 math test completed!
+✅ V3 math test completed
+
+=== Testing PancakeSwap V2 Simulation Accuracy ===
+V2 Sell Test:
+  Reserve0: 1000000000000000000000
+  Reserve1: 50000000000000000000000
+  AmountIn: 1000000000000000000
+  Expected Output: 49825299263984175784
+  Fee: 0.25% (9975/10000)
+
+V2 Buy Test:
+  Reserve0: 1000000000000000000000
+  Reserve1: 50000000000000000000000
+  AmountOut Desired: 1000000000000000000
+  Expected Input: 20050526323809685
+  Fee: 0.25% (9975/10000)
+
+✅ PancakeSwap V2 formulas verified!
+=== Testing V3 Simulation Accuracy ===
+V3 Sell Test (token0->token1):
+  SqrtPriceX96: 79228162514264337593543950336
+  Liquidity: 1000000000000000000000
+  AmountIn: 100000000000000000
+  AmountOut: None
+  Fee: 0.3% (3000 bps)
+
+V3 Sell Test (token1->token0):
+  AmountIn: 100000000000000000
+  AmountOut: None
+
+V3 Buy Test (token1->token0):
+  Desired Output: 100000000000000000
+  Amount In Needed: None
+
+V3 Small Amount Test:
+  AmountIn: 10000000000000000
+  AmountOut: None
+  Price change (token1->token0): 1 -> 1.0000200001000001 (increased: true)
+
+✅ V3 simulation test completed!
+Loaded 1912176 pairs from files (84547 V3 pairs).
+Preloading reserves for all pools...
+[CACHE] Starting preload for 1912176 pairs in batches of 10000
+[CACHE] Processing batch 1 (10000 pairs)
+[CACHE][BATCH 1] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 2 (10000 pairs)
+[CACHE][BATCH 2] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 3 (10000 pairs)
+[CACHE][BATCH 3] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 4 (10000 pairs)
+[CACHE][BATCH 4] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 5 (10000 pairs)
+[CACHE][BATCH 5] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 6 (10000 pairs)
+[CACHE][BATCH 6] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 7 (10000 pairs)
+[CACHE][BATCH 7] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 8 (10000 pairs)
+[CACHE][BATCH 8] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 9 (10000 pairs)
+[CACHE][BATCH 9] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 10 (10000 pairs)
+[CACHE][BATCH 10] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 11 (10000 pairs)
+[CACHE][BATCH 11] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 12 (10000 pairs)
+[CACHE][BATCH 12] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 13 (10000 pairs)
+[CACHE][BATCH 13] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 14 (10000 pairs)
+[CACHE][BATCH 14] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 15 (10000 pairs)
+[CACHE][BATCH 15] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 16 (10000 pairs)
+[CACHE][BATCH 16] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 17 (10000 pairs)
+[CACHE][BATCH 17] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 18 (10000 pairs)
+[CACHE][BATCH 18] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 19 (10000 pairs)
+[CACHE][BATCH 19] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 20 (10000 pairs)
+[CACHE][BATCH 20] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 21 (10000 pairs)
+[CACHE][BATCH 21] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 22 (10000 pairs)
+[CACHE][BATCH 22] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 23 (10000 pairs)
+[CACHE][BATCH 23] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 24 (10000 pairs)
+[CACHE][BATCH 24] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 25 (10000 pairs)
+[CACHE][BATCH 25] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 26 (10000 pairs)
+[CACHE][BATCH 26] Success: 10000, Errors: 0, V2: 10000, V3: 0
+[CACHE] Processing batch 27 (10000 pairs)

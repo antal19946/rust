@@ -38,8 +38,21 @@ use rayon::prelude::*;
 
 #[tokio::main]
 async fn main() {
-    println!("Starting pair fetcher...");
+    println!("🚀 Starting Ultra-Low Latency Arbitrage Bot...");
     let config = Config::default();
+
+    // Check if we should fetch pairs from factories
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 && args[1] == "--fetch-pairs" {
+        println!("📡 Fetching pairs from DEX factories...");
+        let fetcher = PairFetcher::new(config.clone());
+        if let Err(e) = fetcher.fetch_all_pairs().await {
+            eprintln!("❌ Error fetching pairs: {}", e);
+            return;
+        }
+        println!("✅ Pair fetching completed! You can now run the bot without --fetch-pairs flag.");
+        return;
+    }
 
     // Test V3 math with realistic values and sanity checks
     println!("\n🧪 TESTING V3 MATH FIXES...");
@@ -55,21 +68,47 @@ async fn main() {
     // Load pairs from files
     let mut pairs: Vec<PairInfo> = Vec::new();
     let mut v3_count = 0;
-    for file_path in ["data/pairs_v2.jsonl", "data/pairs_v3.jsonl"] {
+    let mut files_found = 0;
+    
+    for file_path in ["data/liquid_pairs_v2_accurate.jsonl", "data/liquid_pairs_v3.jsonl"] {
         if let Ok(file) = File::open(file_path) {
+            files_found += 1;
+            println!("📁 Loading pairs from: {}", file_path);
             let reader = BufReader::new(file);
+            let mut line_count = 0;
+            let mut parse_errors = 0;
             for line in reader.lines() {
+                line_count += 1;
                 if let Ok(line) = line {
-                    if let Ok(pair) = serde_json::from_str::<PairInfo>(&line) {
-                        if pair.dex_version == config::DexVersion::V3 {
-                            v3_count += 1;
+                    match serde_json::from_str::<PairInfo>(&line) {
+                        Ok(pair) => {
+                            if pair.dex_version == config::DexVersion::V3 {
+                                v3_count += 1;
+                            }
+                            pairs.push(pair);
                         }
-                        pairs.push(pair);
+                        Err(e) => {
+                            parse_errors += 1;
+                            if parse_errors <= 3 {
+                                println!("❌ Parse error on line {}: {}", line_count, e);
+                                println!("   Line content: {}", &line[..std::cmp::min(100, line.len())]);
+                            }
+                        }
                     }
                 }
             }
+            println!("   Loaded {} pairs, {} parse errors from {}", pairs.len(), parse_errors, file_path);
+        } else {
+            println!("❌ Could not open file: {}", file_path);
         }
     }
+    
+    if files_found == 0 {
+        println!("❌ No pair files found! Please fetch pairs first:");
+        println!("   cargo run -- --fetch-pairs");
+        return;
+    }
+    
     println!("Loaded {} pairs from files ({} V3 pairs).", pairs.len(), v3_count);
 
   
@@ -80,7 +119,7 @@ async fn main() {
 
     // Preload reserves in parallel
     println!("Preloading reserves for all pools...");
-    cache::preload_reserve_cache(&pairs, provider.clone(), &reserve_cache, 200).await;
+    cache::preload_reserve_cache(&pairs, provider.clone(), &reserve_cache, 2000).await;
     println!("Reserve cache loaded: {} pools", reserve_cache.len());
 
 
@@ -113,36 +152,46 @@ async fn main() {
 
 
     // Load all base tokens from config
-    let base_tokens: Vec<u16> = config.base_tokens.iter()
+            let base_tokens: Vec<u32> = config.base_tokens.iter()
         .filter_map(|bt| token_index_map.address_to_index.get(&bt.address).copied())
         .collect();
     println!("[DEBUG] Using base tokens: {:?}", config.base_tokens.iter().map(|bt| format!("{}: {}", bt.symbol, bt.address)).collect::<Vec<_>>());
     println!("[DEBUG] Base token indices: {:?}", base_tokens);
 
     // Track all tokens in graph
-    let tracked_tokens: Vec<u16> = token_index_map.index_to_address.keys().cloned().collect();
+            let tracked_tokens: Vec<u32> = token_index_map.index_to_address.keys().cloned().collect();
 
-    let route_cache = DashMap::new();
-    println!("Populating best routes for all tokens (parallel)...");
-    populate_best_routes_for_all_tokens(
-        &token_graph,
-        &reserve_cache,
-        &token_index_map,
-        &base_tokens,
-        &tracked_tokens,
-        &route_cache,
-    );
-    println!("Best route cache populated: {} tokens", route_cache.len());
+            let route_cache: DashMap<u32, BestRoute> = DashMap::new();
+    // println!("Populating best routes for all tokens (parallel)...");
+    // populate_best_routes_for_all_tokens(
+    //     &token_graph,
+    //     &reserve_cache,
+    //     &token_index_map,
+    //     &base_tokens,
+    //     &tracked_tokens,
+    //     &route_cache,
+    // );
+    // println!("Best route cache populated: {} tokens", route_cache.len());
     
-    let token_address = H160::from_str("0x6EaDc05928ACd93eFB3FA0DFbC644D96C6Aa1Df8").unwrap();
-    let token_index = token_index_map.address_to_index.get(&token_address).unwrap();
+    // let token_address = H160::from_str("0x6EaDc05928ACd93eFB3FA0DFbC644D96C6Aa1Df8").unwrap();
+    // let token_index = token_index_map.address_to_index.get(&token_address);
+    
+    // if token_index.is_none() {
+    //     println!("❌ Token address {} not found in token_index_map", token_address);
+    //     println!("Available tokens: {}", token_index_map.address_to_index.len());
+    //     if token_index_map.address_to_index.len() > 0 {
+    //         println!("First few tokens: {:?}", token_index_map.address_to_index.iter().take(3).collect::<Vec<_>>());
+    //     }
+    //     return;
+    // }
+    // let token_index = token_index.unwrap();
 
-    if let Some(route) = route_cache.get(token_index) {
-        println!("Best BUY route for USDT: {:#?}", route.best_buy);
-        println!("Best SELL route for USDT: {:#?}", route.best_sell);
-    } else {
-        println!("No route found for USDT index {}", token_index);
-    }
+    // if let Some(route) = route_cache.get(token_index) {
+    //     println!("Best BUY route for USDT: {:#?}", route.best_buy);
+    //     println!("Best SELL route for USDT: {:#?}", route.best_sell);
+    // } else {
+    //     println!("No route found for USDT index {}", token_index);
+    // }
 
     // Build all_pools: Vec<PoolMeta> from pairs
     let all_pools: Vec<PoolMeta> = pairs.iter().map(|pair| {
@@ -540,4 +589,8 @@ async fn main() {
     println!("  Average Profit per Opportunity: {}", 
         if opportunity_count > 0 { total_profit / U256::from(opportunity_count) } else { U256::zero() });
     println!("✅ Bot shutdown complete!");
+    
+    // Helpful message for users
+    println!("\n💡 TIP: To fetch fresh pairs from DEX factories, run:");
+    println!("   cargo run -- --fetch-pairs");
 }

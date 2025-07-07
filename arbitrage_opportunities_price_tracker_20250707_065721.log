@@ -1,0 +1,39 @@
+{
+  "best_route": {
+    "buy_path_hops": [
+      59,
+      370
+    ],
+    "merged_amounts": [
+      "8884214869038280977",
+      "3446181651178980",
+      "3486801918038588546608",
+      "8922014614087043632"
+    ],
+    "merged_pools": [
+      "0xea26b78255df2bbc31c1ebf60010d78670185bd0",
+      "0x0cf9dd359d194803f48171cf7556381786219630",
+      "0xe55be3754b659360ea8a36a473459bd0c2c16a57"
+    ],
+    "merged_symbols": [
+      "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+      "0x2170ed0880ac9a755fd29b2688956bd959f933f8",
+      "0x6a0055d1e457ba691a23abd83bd73c04ffa641df",
+      "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"
+    ],
+    "profit": "37799745048762655",
+    "sell_path_hops": [
+      370,
+      11760,
+      59
+    ]
+  },
+  "block_number": 53164831,
+  "estimated_profit": "37799745048762655",
+  "pool_address": "0xea26b78255df2bbc31c1ebf60010d78670185bd0",
+  "profitable_routes_count": 2,
+  "source": "price_tracker",
+  "timestamp": "2025-07-07T06:57:21.325847852+00:00",
+  "token_x": "0x2170ed0880ac9a755fd29b2688956bd959f933f8",
+  "token_x_amount": "3446181651178980"
+}

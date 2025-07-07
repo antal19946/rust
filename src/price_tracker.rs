@@ -692,7 +692,7 @@ async fn find_arbitrage_opportunity_from_price_tracker(
 
 /// Helper to map token index to symbol (price tracker version)
 fn token_index_to_symbol_from_price_tracker(idx: u32, token_index: &TokenIndexMap) -> String {
-    if let Some(addr) = token_index.index_to_address.get(&(idx as u16)) {
+    if let Some(addr) = token_index.index_to_address.get(&(idx as u32)) {
         format!("0x{:x}", addr)
     } else {
         format!("token{}", idx)

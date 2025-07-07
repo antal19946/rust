@@ -540,7 +540,7 @@ impl MempoolDecoder {
 
     /// Helper to map token index to symbol
     fn token_index_to_symbol(&self, idx: u32) -> String {
-        if let Some(addr) = self.token_index.index_to_address.get(&(idx as u16)) {
+        if let Some(addr) = self.token_index.index_to_address.get(&(idx as u32)) {
             format!("0x{:x}", addr)
         } else {
             format!("token{}", idx)

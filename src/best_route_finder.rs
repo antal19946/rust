@@ -12,7 +12,7 @@ use rayon::prelude::*;
 
 #[derive(Clone, Debug)]
 pub struct RoutePath {
-    pub hops: SmallVec<[u16; 4]>,
+    pub hops: SmallVec<[u32; 4]>,
     pub pools: SmallVec<[H160; 3]>,
     pub dex_types: SmallVec<[PoolType; 3]>,
     pub output: f64,
@@ -26,17 +26,17 @@ pub struct BestRoute {
 
 #[derive(Clone, Debug)]
 pub struct PartialRoute {
-    pub hops: SmallVec<[u16; 4]>,
+    pub hops: SmallVec<[u32; 4]>,
     pub pools: SmallVec<[H160; 3]>,
     pub dex_types: SmallVec<[PoolType; 3]>,
 }
 
 pub fn dfs_all_paths(
-    current: u16,
-    target: u16,
+    current: u32,
+    target: u32,
     depth: usize,
     graph: &TokenGraph,
-    visited: &SmallVec<[u16; 4]>,
+    visited: &SmallVec<[u32; 4]>,
 ) -> Vec<PartialRoute> {
     let mut results = Vec::new();
     if let Some(neighbors) = graph.edges.get(&current) {
@@ -136,8 +136,8 @@ pub fn simulate_path(
 }
 
 pub fn generate_best_routes_for_token(
-    token_x: u16,
-    base_tokens: &[u16],
+    token_x: u32,
+    base_tokens: &[u32],
     graph: &TokenGraph,
     reserve_cache: &ReserveCache,
     token_index: &TokenIndexMap,
@@ -148,7 +148,7 @@ pub fn generate_best_routes_for_token(
         if base == token_x {
             continue;
         }
-        let mut visited = SmallVec::<[u16; 4]>::new();
+        let mut visited = SmallVec::<[u32; 4]>::new();
         visited.push(base);
         let buy_routes = dfs_all_paths(base, token_x, 2, graph, &visited);
         for route in buy_routes.iter() {
@@ -162,7 +162,7 @@ pub fn generate_best_routes_for_token(
                 });
             }
         }
-        let mut visited = SmallVec::<[u16; 4]>::new();
+        let mut visited = SmallVec::<[u32; 4]>::new();
         visited.push(token_x);
         let sell_routes = dfs_all_paths(token_x, base, 2, graph, &visited);
         for route in sell_routes.iter() {
@@ -184,9 +184,9 @@ pub fn populate_best_routes_for_all_tokens(
     graph: &TokenGraph,
     reserve_cache: &ReserveCache,
     token_index: &TokenIndexMap,
-    base_tokens: &[u16],
-    tracked_tokens: &[u16],
-    route_cache: &DashMap<u16, BestRoute>,
+    base_tokens: &[u32],
+    tracked_tokens: &[u32],
+    route_cache: &DashMap<u32, BestRoute>,
 ) {
     tracked_tokens.par_iter().for_each(|&token_x| {
         let result = generate_best_routes_for_token(
