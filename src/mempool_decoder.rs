@@ -5,6 +5,7 @@ use crate::split_route_path::split_route_around_token_x;
 use crate::simulate_swap_path::{simulate_buy_path_amounts_array, simulate_sell_path_amounts_array};
 use crate::token_index::TokenIndexMap;
 use crate::config::Config;
+use crate::token_tax::TokenTaxMap;
 use dashmap::DashMap;
 use ethers::{
     providers::{Provider, Ws, Middleware},
@@ -51,6 +52,7 @@ pub struct MempoolDecoder {
     opportunity_tx: mpsc::Sender<ArbitrageOpportunity>,
     monitored_pools: Vec<H160>, // All pool addresses from reserve_cache
     log_file_path: String,
+    token_tax_map: Arc<TokenTaxMap>, // <-- add this field
 }
 
 impl MempoolDecoder {
@@ -61,6 +63,7 @@ impl MempoolDecoder {
         precomputed_route_cache: Arc<DashMap<u32, Vec<RoutePath>>>,
         config: Config,
         opportunity_tx: mpsc::Sender<ArbitrageOpportunity>,
+        token_tax_map: Arc<TokenTaxMap>, // <-- add here
     ) -> Self {
         // Extract all pool addresses from reserve_cache
         let monitored_pools: Vec<H160> = reserve_cache.iter()
@@ -82,6 +85,7 @@ impl MempoolDecoder {
             opportunity_tx,
             monitored_pools,
             log_file_path,
+            token_tax_map, // <-- set here
         }
     }
 
@@ -190,7 +194,7 @@ impl MempoolDecoder {
                 return Ok(()); // Restart the session
             }
             
-            println!("🔍 DEBUG: About to wait for pending transaction...");
+            // println!("🔍 DEBUG: About to wait for pending transaction...");
             
             tokio::select! {
                 // Handle pending transactions with timeout
@@ -198,10 +202,10 @@ impl MempoolDecoder {
                     tokio::time::Duration::from_secs(10),
                     pending_stream.next()
                 ) => {
-                    println!("🔍 DEBUG: Pending transaction timeout result received: {:?}", result.is_ok());
+                    // println!("🔍 DEBUG: Pending transaction timeout result received: {:?}", result.is_ok());
                     match result {
                         Ok(Some(tx_hash)) => {
-                            println!("🔍 DEBUG: Processing pending transaction: {:?}", tx_hash);
+                            // println!("🔍 DEBUG: Processing pending transaction: {:?}", tx_hash);
                             last_activity = std::time::Instant::now();
                             
                             // Add timeout for transaction processing
@@ -251,7 +255,7 @@ impl MempoolDecoder {
                         println!("🎯 Found arbitrage opportunity! Profit: {}", opportunity.estimated_profit);
                         
                         // Log the opportunity to file
-                        self.log_opportunity(&opportunity);
+                        // self.log_opportunity(&opportunity);
                         
                         // Send opportunity for execution
                         if let Err(e) = self.opportunity_tx.send(opportunity).await {
@@ -281,7 +285,7 @@ impl MempoolDecoder {
                 println!("🎯 Found arbitrage opportunity! Profit: {}", opportunity.estimated_profit);
                 
                 // Log the opportunity to file
-                self.log_opportunity(&opportunity);
+                // self.log_opportunity(&opportunity);
                 
                 // Send opportunity for execution
                 if let Err(e) = self.opportunity_tx.send(opportunity).await {
@@ -460,7 +464,9 @@ impl MempoolDecoder {
                     &buy_path, 
                     decoded_swap.token_x_amount, 
                     &self.reserve_cache, 
-                    &self.token_index
+                    &self.token_index,
+                    &self.token_tax_map,
+                    &self.config
                 )?;
 
                 // Simulate sell path (tokenX -> base)
@@ -468,13 +474,20 @@ impl MempoolDecoder {
                     &sell_path, 
                     decoded_swap.token_x_amount, 
                     &self.reserve_cache, 
-                    &self.token_index
+                    &self.token_index,
+                    &self.token_tax_map,
+                    &self.config
                 )?;
 
                 // Merge amounts: [buy_amounts..., sell_amounts[1..]]
                 let mut merged_amounts = buy_amounts.clone();
                 merged_amounts.extend_from_slice(&sell_amounts[1..]);
-
+                // let sell_test_amounts = simulate_sell_path_amounts_array(
+                //     route, 
+                //     merged_amounts[0], 
+                //     &self.reserve_cache, 
+                //     &self.token_index
+                // )?;
                 // Calculate profit
                 if merged_amounts.len() >= 2 {
                     let amount_in = merged_amounts[0];
@@ -484,26 +497,43 @@ impl MempoolDecoder {
                     // Only consider profitable trades
                     if profit > U256::zero() {
                         // Merge token indices
-                        let mut merged_tokens = buy_path.hops.clone();
-                        merged_tokens.extend_from_slice(&sell_path.hops[1..]);
+                        // let mut merged_tokens = buy_path.hops.clone();
+                        // merged_tokens.extend_from_slice(&sell_path.hops[1..]);
 
-                        // Map to symbols
-                        let merged_symbols = merged_tokens.iter()
-                            .map(|&idx| self.token_index_to_symbol(idx))
-                            .collect();
+                        // // Map to symbols
+                        // let merged_symbols = merged_tokens.iter()
+                        //     .map(|&idx| self.token_index_to_symbol(idx))
+                        //     .collect();
 
-                        // Merge pools
-                        let mut merged_pools = buy_path.pools.clone();
-                        merged_pools.extend_from_slice(&sell_path.pools);
+                        // // Merge pools
+                        // let mut merged_pools = buy_path.pools.clone();
+                        // merged_pools.extend_from_slice(&sell_path.pools);
 
+                        // Calculate profit percentage
+                        let profit_percentage = if amount_in > U256::zero() {
+                            let profit_f64 = profit.as_u128() as f64;
+                            let amount_in_f64 = amount_in.as_u128() as f64;
+                            (profit_f64 / amount_in_f64) * 100.0
+                        } else {
+                            0.0
+                        };
+                        
                         return Some(SimulatedRoute {
                             merged_amounts,
-                            merged_tokens,
-                            merged_symbols,
-                            merged_pools,
+                            buy_amounts,
+                            sell_amounts,
+                            // merged_tokens,
+                            // merged_symbols,
+                            buy_symbols: buy_path.hops.iter().map(|&idx| self.token_index_to_symbol(idx)).collect(),
+                            sell_symbols: sell_path.hops.iter().map(|&idx| self.token_index_to_symbol(idx)).collect(),
+                            // merged_pools: merged_pools.clone(),
+                            buy_pools: buy_path.pools.clone(),
+                            sell_pools: sell_path.pools.clone(),
                             profit,
+                            profit_percentage,
                             buy_path: buy_path.clone(),
                             sell_path: sell_path.clone(),
+                            // sell_test_amounts,
                         });
                     }
                 }
@@ -523,9 +553,9 @@ impl MempoolDecoder {
             return None;
         }
 
-        // Find the most profitable route
+        // Find the most profitable route by percentage (better for multiple base tokens)
         let best_route = profitable_routes.iter()
-            .max_by_key(|route| route.profit)
+            .max_by(|a, b| a.profit_percentage.partial_cmp(&b.profit_percentage).unwrap_or(std::cmp::Ordering::Equal))
             .cloned();
 
         let estimated_profit = best_route.as_ref().map(|r| r.profit).unwrap_or(U256::zero());
@@ -548,44 +578,44 @@ impl MempoolDecoder {
     }
 
     /// Log profitable arbitrage opportunity to file
-    fn log_opportunity(&self, opportunity: &ArbitrageOpportunity) {
-        let now: DateTime<Utc> = Utc::now();
+    // fn log_opportunity(&self, opportunity: &ArbitrageOpportunity) {
+    //     let now: DateTime<Utc> = Utc::now();
         
-        // Create detailed log entry
-        let log_entry = json!({
-            "timestamp": now.to_rfc3339(),
-            "block_number": opportunity.decoded_swap.block_number,
-            "pool_address": format!("0x{:x}", opportunity.decoded_swap.pool_address),
-            "token_x": format!("0x{:x}", opportunity.decoded_swap.token_x),
-            "token_x_amount": opportunity.decoded_swap.token_x_amount.to_string(),
-            "estimated_profit": opportunity.estimated_profit.to_string(),
-            "profitable_routes_count": opportunity.profitable_routes.len(),
-            "best_route": {
-                "merged_amounts": opportunity.best_route.as_ref().map(|r| r.merged_amounts.iter().map(|a| a.to_string()).collect::<Vec<_>>()),
-                "merged_symbols": opportunity.best_route.as_ref().map(|r| r.merged_symbols.clone()),
-                "merged_pools": opportunity.best_route.as_ref().map(|r| r.merged_pools.iter().map(|p| format!("0x{:x}", p)).collect::<Vec<_>>()),
-                "profit": opportunity.best_route.as_ref().map(|r| r.profit.to_string()),
-                "buy_path_hops": opportunity.best_route.as_ref().map(|r| r.buy_path.hops.clone()),
-                "sell_path_hops": opportunity.best_route.as_ref().map(|r| r.sell_path.hops.clone()),
-            }
-        });
+    //     // Create detailed log entry
+    //     let log_entry = json!({
+    //         "timestamp": now.to_rfc3339(),
+    //         "block_number": opportunity.decoded_swap.block_number,
+    //         "pool_address": format!("0x{:x}", opportunity.decoded_swap.pool_address),
+    //         "token_x": format!("0x{:x}", opportunity.decoded_swap.token_x),
+    //         "token_x_amount": opportunity.decoded_swap.token_x_amount.to_string(),
+    //         "estimated_profit": opportunity.estimated_profit.to_string(),
+    //         "profitable_routes_count": opportunity.profitable_routes.len(),
+    //         "best_route": {
+    //             "merged_amounts": opportunity.best_route.as_ref().map(|r| r.merged_amounts.iter().map(|a| a.to_string()).collect::<Vec<_>>()),
+    //             "merged_symbols": opportunity.best_route.as_ref().map(|r| r.merged_symbols.clone()),
+    //             "merged_pools": opportunity.best_route.as_ref().map(|r| r.merged_pools.iter().map(|p| format!("0x{:x}", p)).collect::<Vec<_>>()),
+    //             "profit": opportunity.best_route.as_ref().map(|r| r.profit.to_string()),
+    //             "buy_path_hops": opportunity.best_route.as_ref().map(|r| r.buy_path.hops.clone()),
+    //             "sell_path_hops": opportunity.best_route.as_ref().map(|r| r.sell_path.hops.clone()),
+    //         }
+    //     });
 
-        // Write to log file
-        if let Ok(mut file) = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&self.log_file_path) {
+    //     // Write to log file
+    //     if let Ok(mut file) = OpenOptions::new()
+    //         .create(true)
+    //         .append(true)
+    //         .open(&self.log_file_path) {
             
-            if let Err(e) = writeln!(file, "{}", serde_json::to_string_pretty(&log_entry).unwrap()) {
-                eprintln!("❌ Failed to write to log file: {}", e);
-            }
-        } else {
-            eprintln!("❌ Failed to open log file: {}", self.log_file_path);
-        }
+    //         if let Err(e) = writeln!(file, "{}", serde_json::to_string_pretty(&log_entry).unwrap()) {
+    //             eprintln!("❌ Failed to write to log file: {}", e);
+    //         }
+    //     } else {
+    //         eprintln!("❌ Failed to open log file: {}", self.log_file_path);
+    //     }
 
-        // Also print summary to console
-        println!("📝 Logged opportunity to: {}", self.log_file_path);
-    }
+    //     // Also print summary to console
+    //     println!("📝 Logged opportunity to: {}", self.log_file_path);
+    // }
 
     /// Get hourly profit summary from log file
     pub fn get_hourly_profit_summary(&self) -> Result<String, Box<dyn std::error::Error>> {
@@ -645,16 +675,18 @@ pub async fn start_mempool_monitoring(
     token_index: Arc<TokenIndexMap>,
     precomputed_route_cache: Arc<DashMap<u32, Vec<RoutePath>>>,
     config: Config,
+    token_tax_map: Arc<TokenTaxMap>, // <-- add here
 ) -> Result<mpsc::Receiver<ArbitrageOpportunity>, Box<dyn std::error::Error>> {
     let (opportunity_tx, opportunity_rx) = mpsc::channel(100);
     
     let decoder = MempoolDecoder::new(
-        provider,
-        reserve_cache,
-        token_index,
-        precomputed_route_cache,
-        config,
-        opportunity_tx,
+        provider.clone(),
+        reserve_cache.clone(),
+        token_index.clone(),
+        precomputed_route_cache.clone(),
+        config.clone(),
+        opportunity_tx.clone(),
+        token_tax_map.clone(), // <-- pass here
     );
 
     // Start monitoring in background

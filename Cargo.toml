@@ -22,4 +22,5 @@ chrono = "0.4"
 num_cpus = "1.16"
 primitive-types = "0.12"
 smallvec = "1.11"
+dotenv = "0.15"
 

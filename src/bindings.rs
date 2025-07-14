@@ -20,5 +20,15 @@ abigen!(
         function token1() external view returns (address)
         function tickSpacing() external view returns (int24)
         function fee() external view returns (uint24)
+        function factory() external view returns (address)
+    ]"#
+);
+
+abigen!(
+    DirectSwapExecutor,
+    r#"[
+        function executeSwap(address[],address[],uint8[],uint256[],bytes[],uint256)
+        function buySellExecution(address[],address[],uint8[],uint256[],address[],address[],uint8[],uint256[])
+        function withdrawToken(address,address,uint256)
     ]"#
 );

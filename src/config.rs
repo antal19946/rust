@@ -32,6 +32,9 @@ pub struct Config {
     // DEX Configuration
     pub dexes: Vec<DexConfig>,
     
+    // DEX Fee Mapping (for V2 pools)
+    pub dex_fees: HashMap<String, u32>, // DEX name -> fee in basis points
+    
     // Base Tokens
     pub base_tokens: Vec<BaseToken>,
     
@@ -75,7 +78,7 @@ impl Default for Config {
                     version: DexVersion::V3,
                 },
                  DexConfig {
-                    name: "dex V3".to_string(),
+                    name: "Uniswap V3".to_string(),
                     factory_address: "0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7"
                         .parse()
                         .unwrap(),
@@ -128,17 +131,28 @@ impl Default for Config {
                     version: DexVersion::V2,
                 },
             ],
-            
+            // DEX Fee Mapping for V2 pools
+            dex_fees: {
+                let mut fees = HashMap::new();
+                fees.insert("PancakeSwap V2".to_string(), 25);    // 0.25%
+                fees.insert("BiSwap".to_string(), 10);            // 0.1%
+                fees.insert("ApeSwap".to_string(), 20);           // 0.2%
+                fees.insert("BakerySwap".to_string(), 30);        // 0.3%
+                fees.insert("MDEX".to_string(), 20);              // 0.2%
+                fees.insert("SushiSwap BSC".to_string(), 30);     // 0.3%
+                fees
+            },
+            // ["0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73", "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865", "0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7", "0x858E3312ed3A876947EA49d572A7C42DE08af7EE", "0x0841BD0B734E4F5853f0dD8d7Ea041c241fb0Da6", "0x01bF7C66c6BD861915CdaaE475042d3c4BaE16A7", "0xc35DADB65012eC5796536bD9864eD8773aBc74C4"]
             base_tokens: vec![
                 // WBNB
-                // BaseToken {
-                //     symbol: "WBNB".to_string(),
-                //     address: "0xbb4CdB9CBd36B01bD1cBaEF60aF814C3bFc7C70d"
-                //         .parse()
-                //         .unwrap(),
-                //     decimals: 18,
-                //     is_stable: false,
-                // },
+                BaseToken {
+                    symbol: "WBNB".to_string(),
+                    address: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
+                        .parse()
+                        .unwrap(),
+                    decimals: 18,
+                    is_stable: false,
+                },
                 // BUSD
                 BaseToken {
                     symbol: "BUSD".to_string(),
@@ -175,15 +189,25 @@ impl Default for Config {
                     decimals: 18,
                     is_stable: false,
                 },
+                
                 // BTCB
-                // BaseToken {
-                //     symbol: "BTCB".to_string(),
-                //     address: "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c"
-                //         .parse()
-                //         .unwrap(),
-                //     decimals: 18,
-                //     is_stable: false,
-                // },
+                BaseToken {
+                    symbol: "BTCB".to_string(),
+                    address: "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c"
+                        .parse()
+                        .unwrap(),
+                    decimals: 18,
+                    is_stable: false,
+                },
+                //weth
+                BaseToken {
+                    symbol: "weth".to_string(),
+                    address: "0x2170Ed0880ac9A755fd29B2688956BD959F933F8"
+                        .parse()
+                        .unwrap(),
+                    decimals: 18,
+                    is_stable: false,
+                },
             ],
             
             // Local node configuration
@@ -234,6 +258,11 @@ impl Config {
     /// Get stable tokens
     pub fn get_stable_tokens(&self) -> Vec<&BaseToken> {
         self.base_tokens.iter().filter(|token| token.is_stable).collect()
+    }
+    
+    /// Get V2 fee for a DEX by name
+    pub fn get_v2_fee(&self, dex_name: &str) -> u32 {
+        self.dex_fees.get(dex_name).copied().unwrap_or(25) // Default to 0.25% if not found
     }
 }
 

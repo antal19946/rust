@@ -44,34 +44,34 @@ struct LiquidPairInfo {
 
 // Known token addresses with USD values (for liquidity calculation) - Updated 2024 prices
 const KNOWN_TOKENS: &[(&str, &str, f64)] = &[
-    ("0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c", "BNB", 660.85),
-    ("0x2170Ed0880ac9A755fd29B2688956BD959F933F8", "ETH", 2555.68),
-    ("0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c", "BTC", 108_809.0),
-    ("0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE", "XRP", 0.52),
-    ("0x3EE2200Efb3400fAbB9AacF31297cBdD1d435D47", "ADA", 0.48),
-    ("0x4338665CBB7B2485A8855A139b75D5e34AB0DB94", "LTC", 68.0),
-    ("0x8fF795a6F4D97E7887C79beA79aba5cc76444aDf", "BCH", 230.0),
-    ("0x7083609fCE4d1d8Dc0C979AAb8c869Ea2C873402", "DOT", 6.8),
-    ("0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD", "LINK", 14.2),
-    ("0x1CE0c2827e2eF14D5C4f29a091d735A204794041", "AVAX", 25.5),
-    ("0x0D8Ce2A99Bb6e3B7Db580eD848240e4a0F9aE153", "FIL", 4.2),
-    ("0x16939ef78684453bfDFb47825F0a1C2EeA8c8c8b", "MATIC", 0.65),
-    ("0x56b6fB708fC5732DEC1Afc8D8556423A2EDcCbD6", "EOS", 0.58),
-    ("0x67ee3Cb086F8a16f34beE3ca72FAD36F7Db929e2", "DYDX", 1.8),
+    ("0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c", "BNB", 693.73),
+    ("0x2170Ed0880ac9A755fd29B2688956BD959F933F8", "ETH", 2976.82),
+    ("0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c", "BTC", 118079.0),
+    ("0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE", "XRP", 2.84),
+    ("0x3EE2200Efb3400fAbB9AacF31297cBdD1d435D47", "ADA", 0.73144),
+    ("0x4338665CBB7B2485A8855A139b75D5e34AB0DB94", "LTC", 93.81),
+    ("0x8fF795a6F4D97E7887C79beA79aba5cc76444aDf", "BCH", 522.68),
+    ("0x7083609fCE4d1d8Dc0C979AAb8c869Ea2C873402", "DOT", 4.00),
+    ("0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD", "LINK", 15.36),
+    ("0x1CE0c2827e2eF14D5C4f29a091d735A204794041", "AVAX", 20.97),
+    ("0x0D8Ce2A99Bb6e3B7Db580eD848240e4a0F9aE153", "FIL", 2.58),
+    ("0x16939ef78684453bfDFb47825F0a1C2EeA8c8c8b", "MATIC", 0.234835),
+    ("0x56b6fB708fC5732DEC1Afc8D8556423A2EDcCbD6", "EOS", 0.539445),
+    ("0x67ee3Cb086F8a16f34beE3ca72FAD36F7Db929e2", "DYDX", 0.608177),
     ("0x9f589e3eabe42ebC94A44757767D194A1EdEfc2C", "TUSD", 1.00),
     ("0x55d398326f99059fF775485246999027B3197955", "USDT", 1.00),
     ("0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", "USDC", 1.00),
     ("0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56", "BUSD", 1.00),
     ("0x14016E85a25aeb13065688cAFB43044C2ef86784", "TUSD", 1.00),
-    ("0x3F56e0c36d275367b8C502090EDF38289b3dEa0d", "MAI", 1.00),
+    ("0x3F56e0c36d275367b8C502090EDF38289a3dEa0d", "MAI", 1.00),
     ("0x4BD17003473389A42DAF6a0a729f6Fdb328BbBd7", "VAI", 1.00),
-    ("0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3", "DAI", 1.00),
-    ("0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82", "CAKE", 2.24),
-    ("0x47BEAd2563dCBf3bF2c9407fEa4dC236fAbA485A", "SXP", 0.17),
-    ("0x4e0e3383324AA6A2c8F2E5412B8E9a195309e790", "ALICE", 1.20),
-    ("0x715D400Fc88a5a4b7b4C8C8C8C8C8C8C8C8C8C8", "AXS", 5.50),
-    // Add/update others as needed...
+    ("0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3", "DAI", 0.9999),
+    ("0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82", "CAKE", 2.51),
+    ("0x47BEAd2563dCBf3bF2c9407fEa4dC236fAbA485A", "SXP", 0.199256),
+    ("0x4e0e3383324AA6A2c8F2E5412B8E9a195309e790", "ALICE", 0.45562),
+    ("0x715D400Fc88a5a4b7b4C8C8C8C8C8C8C8C8C8C8", "AXS", 2.51),
 ];
+
 fn get_token_usd_value(token_address: &H160) -> Option<f64> {
     let addr_str = format!("0x{:x}", token_address);
     KNOWN_TOKENS.iter()
@@ -129,7 +129,7 @@ async fn check_v2_liquidity(
                 token0_decimals,
                 token1_decimals,
             );
-            if liquidity_usd >= 200.0 {
+            if liquidity_usd >= 9.0 {
                 Some(LiquidPairInfo {
                     pair_address: pair.pair_address,
                     token0: pair.token0,
@@ -195,7 +195,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
     let provider = Arc::new(Provider::<Http>::try_from(&rpc_url)?);
     
-    let min_liquidity_usd = 200.0;
+    let min_liquidity_usd = 9.0;
     println!("📊 Minimum liquidity threshold: ${}", min_liquidity_usd);
     println!("🔗 Using RPC: {}", rpc_url);
     
@@ -246,7 +246,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Write results
     println!("📝 Writing results...");
-    let mut output = BufWriter::new(File::create("data/liquid_pairs_v2_accurate.jsonl")?);
+    let output_filename = "data/liquid_pairs_v2_new.jsonl";
+    let mut output = BufWriter::new(File::create(output_filename)?);
     for liquid_pair in &liquid_pairs {
         let json = serde_json::to_string(liquid_pair)?;
         writeln!(output, "{}", json)?;
@@ -261,7 +262,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Total time: {:.2?}", total_time);
     println!("   Average speed: {:.1} pairs/sec", total_pairs as f64 / total_time.as_secs_f64());
     println!("📁 Output file:");
-    println!("   - data/liquid_pairs_v2_accurate.jsonl");
+    println!("   - {}", output_filename);
     
     Ok(())
 } 

@@ -6,6 +6,9 @@ use crate::v3_math::{Q96, mul_div, simulate_v3_swap, calculate_v3_buy_amount, sq
 use crate::split_route_path::split_route_around_token_x;
 use std::collections::HashMap;
 use dashmap::DashMap;
+use crate::token_tax::TokenTaxMap;
+use crate::config::Config;
+use std::sync::Arc;
 
 /// Detailed hop information with amounts
 #[derive(Debug, Clone)]
@@ -73,7 +76,14 @@ fn simulate_v3_swap_single(
 
 /// Simulate how many base tokens are needed to buy `amount_out` of tokenX
 /// Returns detailed information for each hop including amounts in/out
-pub fn simulate_buy_path(route: &RoutePath, token_x_amount: U256, cache: &ReserveCache, token_index_map: &TokenIndexMap) -> Option<PathSimulationResult> {
+pub fn simulate_buy_path(
+    route: &RoutePath,
+    token_x_amount: U256,
+    cache: &ReserveCache,
+    token_index_map: &TokenIndexMap,
+    token_tax_map: &Arc<TokenTaxMap>,
+    config: &Config,
+) -> Option<PathSimulationResult> {
     let mut amount_out = token_x_amount;
     let mut hops = Vec::new();
     
@@ -104,14 +114,33 @@ pub fn simulate_buy_path(route: &RoutePath, token_x_amount: U256, cache: &Reserv
                     println!("[V2 BUY] Insufficient output: reserve_out={}, amount_out={}", reserve_out, amount_out);
                     return None; 
                 }
-                // PancakeSwap V2 getAmountsIn formula: amountIn = (reserveIn * amountOut * 10000) / ((reserveOut - amountOut) * 9975) + 1
+                
+                // Get dynamic fee based on DEX name
+                let fee = if let Some(dex_name) = &entry.dex_name {
+                    config.get_v2_fee(dex_name)
+                } else {
+                    25 // Default to 0.25% if no DEX name
+                };
+                
+                // Dynamic V2 getAmountsIn formula based on fee
+                let fee_numerator = 10000 - fee;
                 let numerator = reserve_in * amount_out * U256::from(10_000u32);
-                let denominator = (reserve_out - amount_out) * U256::from(9975u32);
+                let denominator = (reserve_out - amount_out) * U256::from(fee_numerator);
                 if denominator.is_zero() { 
                     println!("[V2 BUY] Denominator zero: reserve_out={}, amount_out={}", reserve_out, amount_out);
                     return None; 
                 }
-                let amount_in = numerator.checked_div(denominator)? + U256::one();
+                let mut amount_in = numerator.checked_div(denominator)? + U256::one();
+                
+                // --- Apply buy tax if exists ---
+                if let Some(tax_info) = token_tax_map.get(&entry.token0) {
+                    let tax = tax_info.buy_tax / 100.0;
+                    if tax > 0.0 {
+                        let amount_in_f = amount_in.as_u128() as f64;
+                        let taxed = amount_in_f / (1.0 - tax);
+                        amount_in = U256::from(taxed as u128);
+                    }
+                }
                 
                 // Add hop detail
                 hops.push(HopDetail {
@@ -123,7 +152,7 @@ pub fn simulate_buy_path(route: &RoutePath, token_x_amount: U256, cache: &Reserv
                     reserve_in,
                     reserve_out,
                     pool_type: crate::cache::PoolType::V2,
-                    fee: 25, // 0.25%
+                    fee,
                 });
                 
                 println!("[V2 BUY] Pool {}: reserve_in={}, reserve_out={}, amount_out={}, calculated_input={}", 
@@ -144,7 +173,17 @@ pub fn simulate_buy_path(route: &RoutePath, token_x_amount: U256, cache: &Reserv
                 }
                 
                 // Use the new V3 buy calculation from v3_math
-                let amount_in = crate::v3_math::calculate_v3_buy_amount(amount_out, sqrt_price_x96, liquidity, fee, zero_for_one)?;
+                let mut amount_in = crate::v3_math::calculate_v3_buy_amount(amount_out, sqrt_price_x96, liquidity, fee, zero_for_one)?;
+                
+                // --- Apply buy tax if exists ---
+                if let Some(tax_info) = token_tax_map.get(&entry.token0) {
+                    let tax = tax_info.buy_tax / 100.0;
+                    if tax > 0.0 {
+                        let amount_in_f = amount_in.as_u128() as f64;
+                        let taxed = amount_in_f / (1.0 - tax);
+                        amount_in = U256::from(taxed as u128);
+                    }
+                }
                 
                 // Add hop detail
                 hops.push(HopDetail {
@@ -180,7 +219,14 @@ pub fn simulate_buy_path(route: &RoutePath, token_x_amount: U256, cache: &Reserv
 
 /// Simulate how many base tokens you get by selling `amount_in` of tokenX
 /// Returns detailed information for each hop including amounts in/out
-pub fn simulate_sell_path(route: &RoutePath, token_x_amount: U256, cache: &ReserveCache, token_index_map: &TokenIndexMap) -> Option<PathSimulationResult> {
+pub fn simulate_sell_path(
+    route: &RoutePath,
+    token_x_amount: U256,
+    cache: &ReserveCache,
+    token_index_map: &TokenIndexMap,
+    token_tax_map: &Arc<TokenTaxMap>,
+    config: &Config,
+) -> Option<PathSimulationResult> {
     let mut amount_in = token_x_amount;
     let mut hops = Vec::new();
     
@@ -207,15 +253,34 @@ pub fn simulate_sell_path(route: &RoutePath, token_x_amount: U256, cache: &Reser
                 } else {
                     (reserve1, reserve0)
                 };
-                // PancakeSwap V2 getAmountsOut formula: amountOut = (amountIn * 9975 * reserveOut) / (reserveIn * 10000 + amountIn * 9975)
-                let amount_in_with_fee = amount_in * U256::from(9975u32);
+                
+                // Get dynamic fee based on DEX name
+                let fee = if let Some(dex_name) = &entry.dex_name {
+                    config.get_v2_fee(dex_name)
+                } else {
+                    25 // Default to 0.25% if no DEX name
+                };
+                
+                // Dynamic V2 getAmountsOut formula based on fee
+                let fee_numerator = 10000 - fee;
+                let amount_in_with_fee = amount_in * U256::from(fee_numerator);
                 let numerator = amount_in_with_fee * reserve_out;
                 let denominator = reserve_in * U256::from(10_000u32) + amount_in_with_fee;
                 if denominator.is_zero() { 
                     println!("[V2 SELL] Denominator zero: reserve_in={}, amount_in={}", reserve_in, amount_in);
                     return None; 
                 }
-                let amount_out = numerator.checked_div(denominator)?;
+                let mut amount_out = numerator.checked_div(denominator)?;
+                
+                // --- Apply sell tax if exists ---
+                if let Some(tax_info) = token_tax_map.get(&entry.token1) {
+                    let tax = tax_info.sell_tax / 100.0;
+                    if tax > 0.0 {
+                        let amount_out_f = amount_out.as_u128() as f64;
+                        let taxed = amount_out_f * (1.0 - tax);
+                        amount_out = U256::from(taxed as u128);
+                    }
+                }
                 
                 // Add hop detail
                 hops.push(HopDetail {
@@ -227,7 +292,7 @@ pub fn simulate_sell_path(route: &RoutePath, token_x_amount: U256, cache: &Reser
                     reserve_in,
                     reserve_out,
                     pool_type: crate::cache::PoolType::V2,
-                    fee: 25, // 0.25%
+                    fee,
                 });
                 
                 println!("[V2 SELL] Pool {}: reserve_in={}, reserve_out={}, amount_in={}, calculated_output={}", 
@@ -248,13 +313,23 @@ pub fn simulate_sell_path(route: &RoutePath, token_x_amount: U256, cache: &Reser
                 }
                 
                 // Use new V3 math function with overflow protection
-                let amount_out = crate::v3_math::simulate_v3_swap(
+                let mut amount_out = crate::v3_math::simulate_v3_swap(
                     amount_in,
                     sqrt_price_x96,
                     liquidity,
                     fee,
                     zero_for_one,
                 )?;
+                
+                // --- Apply sell tax if exists ---
+                if let Some(tax_info) = token_tax_map.get(&entry.token1) {
+                    let tax = tax_info.sell_tax / 100.0;
+                    if tax > 0.0 {
+                        let amount_out_f = amount_out.as_u128() as f64;
+                        let taxed = amount_out_f * (1.0 - tax);
+                        amount_out = U256::from(taxed as u128);
+                    }
+                }
                 
                 // Add hop detail
                 hops.push(HopDetail {
@@ -453,6 +528,8 @@ pub fn simulate_buy_path_amounts_vec(
     token_x_amount: U256,
     cache: &ReserveCache,
     token_index_map: &TokenIndexMap,
+    token_tax_map: &Arc<TokenTaxMap>,
+    config: &Config,
 ) -> Option<(Vec<U256>, Vec<U256>)> {
     let mut amounts_in = Vec::with_capacity(route.pools.len());
     let mut amounts_out = Vec::with_capacity(route.pools.len());
@@ -480,9 +557,29 @@ pub fn simulate_buy_path_amounts_vec(
                     return None; // Insufficient liquidity
                 }
                 
+                // Get dynamic fee based on DEX name
+                let fee = if let Some(dex_name) = &entry.dex_name {
+                    config.get_v2_fee(dex_name)
+                } else {
+                    25 // Default to 0.25% if no DEX name
+                };
+                
+                // Dynamic V2 getAmountsIn formula based on fee
+                let fee_numerator = 10000 - fee;
                 let numerator = reserve_in * amount_out * U256::from(10_000u32);
-                let denominator = (reserve_out - amount_out) * U256::from(9975u32);
-                let amount_in = numerator.checked_div(denominator)? + U256::one();
+                let denominator = (reserve_out - amount_out) * U256::from(fee_numerator);
+                let mut amount_in = numerator.checked_div(denominator)? + U256::one();
+                
+                // --- Apply buy tax if exists ---
+                if let Some(tax_info) = token_tax_map.get(&entry.token0) {
+                    let tax = tax_info.buy_tax / 100.0;
+                    if tax > 0.0 {
+                        let amount_in_f = amount_in.as_u128() as f64;
+                        let taxed = amount_in_f / (1.0 - tax);
+                        amount_in = U256::from(taxed as u128);
+                    }
+                }
+                
                 amounts_in.push(amount_in);
                 amounts_out.push(amount_out);
                 amount_out = amount_in;
@@ -494,7 +591,18 @@ pub fn simulate_buy_path_amounts_vec(
                 let zero_for_one = input_token == token0_idx;
                 
                 // Use the proper V3 buy calculation function
-                let amount_in = crate::v3_math::calculate_v3_buy_amount(amount_out, sqrt_price_x96, liquidity, fee, zero_for_one)?;
+                let mut amount_in = crate::v3_math::calculate_v3_buy_amount(amount_out, sqrt_price_x96, liquidity, fee, zero_for_one)?;
+                
+                // --- Apply buy tax if exists ---
+                if let Some(tax_info) = token_tax_map.get(&entry.token0) {
+                    let tax = tax_info.buy_tax / 100.0;
+                    if tax > 0.0 {
+                        let amount_in_f = amount_in.as_u128() as f64;
+                        let taxed = amount_in_f / (1.0 - tax);
+                        amount_in = U256::from(taxed as u128);
+                    }
+                }
+                
                 amounts_in.push(amount_in);
                 amounts_out.push(amount_out);
                 amount_out = amount_in;
@@ -514,6 +622,8 @@ pub fn simulate_sell_path_amounts_vec(
     token_x_amount: U256,
     cache: &ReserveCache,
     token_index_map: &TokenIndexMap,
+    token_tax_map: &Arc<TokenTaxMap>,
+    config: &Config,
 ) -> Option<(Vec<U256>, Vec<U256>)> {
     let mut amounts_in = Vec::with_capacity(route.pools.len());
     let mut amounts_out = Vec::with_capacity(route.pools.len());
@@ -535,10 +645,31 @@ pub fn simulate_sell_path_amounts_vec(
                 } else {
                     (reserve1, reserve0)
                 };
-                let amount_in_with_fee = amount_in * U256::from(9975u32);
+                
+                // Get dynamic fee based on DEX name
+                let fee = if let Some(dex_name) = &entry.dex_name {
+                    config.get_v2_fee(dex_name)
+                } else {
+                    25 // Default to 0.25% if no DEX name
+                };
+                
+                // Dynamic V2 getAmountsOut formula based on fee
+                let fee_numerator = 10000 - fee;
+                let amount_in_with_fee = amount_in * U256::from(fee_numerator);
                 let numerator = amount_in_with_fee * reserve_out;
                 let denominator = reserve_in * U256::from(10_000u32) + amount_in_with_fee;
-                let amount_out = numerator.checked_div(denominator)?;
+                let mut amount_out = numerator.checked_div(denominator)?;
+                
+                // --- Apply sell tax if exists ---
+                if let Some(tax_info) = token_tax_map.get(&entry.token1) {
+                    let tax = tax_info.sell_tax / 100.0;
+                    if tax > 0.0 {
+                        let amount_out_f = amount_out.as_u128() as f64;
+                        let taxed = amount_out_f * (1.0 - tax);
+                        amount_out = U256::from(taxed as u128);
+                    }
+                }
+                
                 amounts_in.push(amount_in);
                 amounts_out.push(amount_out);
                 amount_in = amount_out;
@@ -548,11 +679,22 @@ pub fn simulate_sell_path_amounts_vec(
                 let liquidity = entry.liquidity?;
                 let fee = entry.fee.unwrap_or(3000);
                 let zero_for_one = input_token == token0_idx;
-                let amount_out = if zero_for_one {
+                let mut amount_out = if zero_for_one {
                     simulate_v3_swap_single(amount_in, sqrt_price_x96, liquidity, fee, true)?
                 } else {
                     simulate_v3_swap_single(amount_in, sqrt_price_x96, liquidity, fee, false)?
                 };
+                
+                // --- Apply sell tax if exists ---
+                if let Some(tax_info) = token_tax_map.get(&entry.token1) {
+                    let tax = tax_info.sell_tax / 100.0;
+                    if tax > 0.0 {
+                        let amount_out_f = amount_out.as_u128() as f64;
+                        let taxed = amount_out_f * (1.0 - tax);
+                        amount_out = U256::from(taxed as u128);
+                    }
+                }
+                
                 amounts_in.push(amount_in);
                 amounts_out.push(amount_out);
                 amount_in = amount_out;
@@ -569,6 +711,8 @@ pub fn simulate_sell_path_amounts_array(
     token_x_amount: U256,
     cache: &ReserveCache,
     token_index_map: &TokenIndexMap,
+    token_tax_map: &Arc<TokenTaxMap>,
+    config: &Config,
 ) -> Option<Vec<U256>> {
     let mut amounts = Vec::with_capacity(route.hops.len());
     amounts.push(token_x_amount); // Start with input amount
@@ -582,7 +726,7 @@ pub fn simulate_sell_path_amounts_array(
         let input_token = route.hops[i];
         let output_token = route.hops[i + 1];
         
-        let amount_out = match entry.pool_type {
+        let mut amount_out = match entry.pool_type {
             crate::cache::PoolType::V2 => {
                 let reserve0 = entry.reserve0?;
                 let reserve1 = entry.reserve1?;
@@ -591,21 +735,55 @@ pub fn simulate_sell_path_amounts_array(
                 } else {
                     (reserve1, reserve0)
                 };
-                let amount_in_with_fee = amount_in * U256::from(9975u32);
+                
+                // Get dynamic fee based on DEX name
+                let fee = if let Some(dex_name) = &entry.dex_name {
+                    config.get_v2_fee(dex_name)
+                } else {
+                    25 // Default to 0.25% if no DEX name
+                };
+                
+                // Dynamic V2 getAmountsOut formula based on fee
+                let fee_numerator = 10000 - fee;
+                let amount_in_with_fee = amount_in * U256::from(fee_numerator);
                 let numerator = amount_in_with_fee * reserve_out;
                 let denominator = reserve_in * U256::from(10_000u32) + amount_in_with_fee;
-                numerator.checked_div(denominator)?
+                let mut amount_out = numerator.checked_div(denominator)?;
+                
+                // --- Apply sell tax if exists ---
+                if let Some(tax_info) = token_tax_map.get(&entry.token1) {
+                    let tax = tax_info.sell_tax / 100.0;
+                    if tax > 0.0 {
+                        let amount_out_f = amount_out.as_u128() as f64;
+                        let taxed = amount_out_f * (1.0 - tax);
+                        amount_out = U256::from(taxed as u128);
+                    }
+                }
+                
+                amount_out
             }
             crate::cache::PoolType::V3 => {
                 let sqrt_price_x96 = entry.sqrt_price_x96?;
                 let liquidity = entry.liquidity?;
                 let fee = entry.fee.unwrap_or(3000);
                 let zero_for_one = input_token == token0_idx;
-                if zero_for_one {
+                let mut amount_out = if zero_for_one {
                     simulate_v3_swap_single(amount_in, sqrt_price_x96, liquidity, fee, true)?
                 } else {
                     simulate_v3_swap_single(amount_in, sqrt_price_x96, liquidity, fee, false)?
+                };
+                
+                // --- Apply sell tax if exists ---
+                if let Some(tax_info) = token_tax_map.get(&entry.token1) {
+                    let tax = tax_info.sell_tax / 100.0;
+                    if tax > 0.0 {
+                        let amount_out_f = amount_out.as_u128() as f64;
+                        let taxed = amount_out_f * (1.0 - tax);
+                        amount_out = U256::from(taxed as u128);
+                    }
                 }
+                
+                amount_out
             }
         };
         
@@ -623,6 +801,8 @@ pub fn simulate_buy_path_amounts_array(
     token_x_amount: U256,
     cache: &ReserveCache,
     token_index_map: &TokenIndexMap,
+    token_tax_map: &Arc<TokenTaxMap>,
+    config: &Config,
 ) -> Option<Vec<U256>> {
     let mut amounts: Vec<U256> = Vec::with_capacity(route.hops.len());
     let mut amount_out = token_x_amount;
@@ -639,7 +819,7 @@ pub fn simulate_buy_path_amounts_array(
         let input_token = route.hops[i];
         let output_token = route.hops[i + 1];
         
-        let amount_in = match entry.pool_type {
+        let mut amount_in = match entry.pool_type {
             crate::cache::PoolType::V2 => {
                 let reserve0 = entry.reserve0?;
                 let reserve1 = entry.reserve1?;
@@ -654,9 +834,30 @@ pub fn simulate_buy_path_amounts_array(
                     return None; // Insufficient liquidity
                 }
                 
+                // Get dynamic fee based on DEX name
+                let fee = if let Some(dex_name) = &entry.dex_name {
+                    config.get_v2_fee(dex_name)
+                } else {
+                    25 // Default to 0.25% if no DEX name
+                };
+                
+                // Dynamic V2 getAmountsIn formula based on fee
+                let fee_numerator = 10000 - fee;
                 let numerator = reserve_in * amount_out * U256::from(10_000u32);
-                let denominator = (reserve_out - amount_out) * U256::from(9975u32);
-                numerator.checked_div(denominator)? + U256::one()
+                let denominator = (reserve_out - amount_out) * U256::from(fee_numerator);
+                let mut amount_in = numerator.checked_div(denominator)? + U256::one();
+                
+                // --- Apply buy tax if exists ---
+                if let Some(tax_info) = token_tax_map.get(&entry.token0) {
+                    let tax = tax_info.buy_tax / 100.0;
+                    if tax > 0.0 {
+                        let amount_in_f = amount_in.as_u128() as f64;
+                        let taxed = amount_in_f / (1.0 - tax);
+                        amount_in = U256::from(taxed as u128);
+                    }
+                }
+                
+                amount_in
             }
             crate::cache::PoolType::V3 => {
                 let sqrt_price_x96 = entry.sqrt_price_x96?;
@@ -665,7 +866,19 @@ pub fn simulate_buy_path_amounts_array(
                 let zero_for_one = input_token == token0_idx;
                 
                 // Use the proper V3 buy calculation function
-                crate::v3_math::calculate_v3_buy_amount(amount_out, sqrt_price_x96, liquidity, fee, zero_for_one)?
+                let mut amount_in = crate::v3_math::calculate_v3_buy_amount(amount_out, sqrt_price_x96, liquidity, fee, zero_for_one)?;
+                
+                // --- Apply buy tax if exists ---
+                if let Some(tax_info) = token_tax_map.get(&entry.token0) {
+                    let tax = tax_info.buy_tax / 100.0;
+                    if tax > 0.0 {
+                        let amount_in_f = amount_in.as_u128() as f64;
+                        let taxed = amount_in_f / (1.0 - tax);
+                        amount_in = U256::from(taxed as u128);
+                    }
+                }
+                
+                amount_in
             }
         };
         
@@ -678,6 +891,67 @@ pub fn simulate_buy_path_amounts_array(
     Some(reverse_amounts)
 }
 
+/// Test function to verify dynamic V2 fee implementation
+pub fn test_dynamic_v2_fees() {
+    println!("=== Testing Dynamic V2 Fee Implementation ===");
+    
+    let config = Config::default();
+    
+    // Test different DEX fees
+    let test_dexes = vec![
+        ("PancakeSwap V2", 25),    // 0.25%
+        ("BiSwap", 10),            // 0.1%
+        ("ApeSwap", 20),           // 0.2%
+        ("BakerySwap", 30),        // 0.3%
+        ("MDEX", 20),              // 0.2%
+        ("SushiSwap BSC", 30),     // 0.3%
+        ("Unknown DEX", 25),       // Should default to 0.25%
+    ];
+    
+    for (dex_name, expected_fee) in test_dexes {
+        let actual_fee = config.get_v2_fee(dex_name);
+        println!("  {}: {} bps (expected: {} bps) - {}", 
+            dex_name, actual_fee, expected_fee, 
+            if actual_fee == expected_fee { "✅" } else { "❌" });
+    }
+    
+    // Test fee calculation formulas
+    println!("\n=== Testing Fee Calculation Formulas ===");
+    
+    let reserve_in = U256::from_dec_str("1000000000000000000000").unwrap(); // 1000 tokens
+    let reserve_out = U256::from_dec_str("50000000000000000000000").unwrap(); // 50000 tokens
+    let amount_out = U256::from_dec_str("1000000000000000000").unwrap(); // 1 token
+    
+    let fee_test_dexes = vec![
+        ("PancakeSwap V2", 25),
+        ("BiSwap", 10),
+        ("ApeSwap", 20),
+        ("BakerySwap", 30),
+    ];
+    
+    for (dex_name, fee) in fee_test_dexes {
+        let fee_numerator = 10000 - fee;
+        
+        // Buy calculation (getAmountsIn)
+        let numerator = reserve_in * amount_out * U256::from(10_000u32);
+        let denominator = (reserve_out - amount_out) * U256::from(fee_numerator);
+        let amount_in = numerator.checked_div(denominator).unwrap() + U256::one();
+        
+        // Sell calculation (getAmountsOut)
+        let amount_in_sell = U256::from_dec_str("1000000000000000000").unwrap(); // 1 token
+        let amount_in_with_fee = amount_in_sell * U256::from(fee_numerator);
+        let numerator_sell = amount_in_with_fee * reserve_out;
+        let denominator_sell = reserve_in * U256::from(10_000u32) + amount_in_with_fee;
+        let amount_out_sell = numerator_sell.checked_div(denominator_sell).unwrap();
+        
+        println!("  {} ({} bps):", dex_name, fee);
+        println!("    Buy: {} tokens in for {} tokens out", amount_in, amount_out);
+        println!("    Sell: {} tokens out for {} tokens in", amount_out_sell, amount_in_sell);
+    }
+    
+    println!("\n✅ Dynamic V2 fee test completed!");
+}
+
 /// Main function to simulate all filtered routes for a given token and pool
 pub fn simulate_all_filtered_routes(
     token_address: H160,
@@ -687,6 +961,8 @@ pub fn simulate_all_filtered_routes(
     precomputed_route_cache: &DashMap<u32, Vec<RoutePath>>,
     reserve_cache: &ReserveCache,
     token_index_map: &TokenIndexMap,
+    token_tax_map: &Arc<TokenTaxMap>,
+    config: &Config,
 ) -> Option<ComprehensiveSimulationResults> {
     // Get token index
     let token_idx = all_tokens.get(&token_address).copied()?;
@@ -720,14 +996,14 @@ pub fn simulate_all_filtered_routes(
         };
         
         // Simulate buy path
-        let buy_result = simulate_buy_path(&buy, token_x_amount, reserve_cache, token_index_map);
-        let buy_amounts_array = simulate_buy_path_amounts_array(&buy, token_x_amount, reserve_cache, token_index_map);
-        let buy_amounts_vec = simulate_buy_path_amounts_vec(&buy, token_x_amount, reserve_cache, token_index_map);
+        let buy_result = simulate_buy_path(&buy, token_x_amount, reserve_cache, token_index_map, token_tax_map, config);
+        let buy_amounts_array = simulate_buy_path_amounts_array(&buy, token_x_amount, reserve_cache, token_index_map, token_tax_map, config);
+        let buy_amounts_vec = simulate_buy_path_amounts_vec(&buy, token_x_amount, reserve_cache, token_index_map, token_tax_map, config);
         
         // Simulate sell path
-        let sell_result = simulate_sell_path(&sell, token_x_amount, reserve_cache, token_index_map);
-        let sell_amounts_array = simulate_sell_path_amounts_array(&sell, token_x_amount, reserve_cache, token_index_map);
-        let sell_amounts_vec = simulate_sell_path_amounts_vec(&sell, token_x_amount, reserve_cache, token_index_map);
+        let sell_result = simulate_sell_path(&sell, token_x_amount, reserve_cache, token_index_map, token_tax_map, config);
+        let sell_amounts_array = simulate_sell_path_amounts_array(&sell, token_x_amount, reserve_cache, token_index_map, token_tax_map, config);
+        let sell_amounts_vec = simulate_sell_path_amounts_vec(&sell, token_x_amount, reserve_cache, token_index_map, token_tax_map, config);
         
         // Calculate profit/loss
         let (profit_loss, profit_percentage) = if let (Some(buy), Some(sell)) = (&buy_result, &sell_result) {

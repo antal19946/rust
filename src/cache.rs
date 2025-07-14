@@ -38,6 +38,7 @@ pub struct PoolState {
     pub tick: Option<i32>,             // V3
     pub fee: Option<u32>,              // V3
     pub tick_spacing: Option<i32>,     // V3
+    pub dex_name: Option<String>,      // DEX name for fee lookup
     pub last_updated: u64,
 }
 
@@ -79,6 +80,7 @@ async fn fetch_reserve(
     let address = pair.pair_address;
     let token0 = pair.token0;
     let token1 = pair.token1;
+    let dex_name = pair.dex_name.clone();
     let now = chrono::Utc::now().timestamp() as u64;
     match pair.dex_version {
         DexVersion::V2 => {
@@ -96,6 +98,7 @@ async fn fetch_reserve(
                         tick: None,
                         fee: None,
                         tick_spacing: None,
+                        dex_name: Some(dex_name),
                         last_updated: now,
                     }))
                 }
@@ -106,27 +109,29 @@ async fn fetch_reserve(
             let contract = UniswapV3Pool::new(address, provider.clone());
             let slot0_res = contract.slot_0().call().await;
             let liquidity_res = contract.liquidity().call().await;
-            match (slot0_res, liquidity_res) {
-                (Ok(slot0), Ok(liq)) => {
-                    // Use default values for fee and tick_spacing for now
-                    let fee = 3000;
-                    let tick_spacing = 60;
-                    Some((address, PoolState {
-                        pool_type: PoolType::V3,
-                        token0,
-                        token1,
-                        reserve0: None,
-                        reserve1: None,
-                        sqrt_price_x96: Some(slot0.0.into()),
-                        liquidity: Some(liq.into()),
-                        tick: Some(slot0.1),
-                        fee: Some(fee),
-                        tick_spacing: Some(tick_spacing),
-                        last_updated: now,
-                    }))
-                }
-                _ => None,
-            }
+            let fee_res = contract.fee().call().await;
+            let tick_spacing_res = contract.tick_spacing().call().await;
+            
+            // Extract values with fallbacks
+            let slot0 = slot0_res.unwrap_or((U256::zero(), 0, 0, 0, 0, 0, false));
+            let liquidity = liquidity_res.unwrap_or(0u128);
+            let fee = fee_res.unwrap_or(3000);
+            let tick_spacing = tick_spacing_res.unwrap_or(60);
+            
+            Some((address, PoolState {
+                pool_type: PoolType::V3,
+                token0,
+                token1,
+                reserve0: None,
+                reserve1: None,
+                sqrt_price_x96: Some(slot0.0),
+                liquidity: Some(liquidity.into()),
+                tick: Some(slot0.1),
+                fee: Some(fee),
+                tick_spacing: Some(tick_spacing),
+                dex_name: Some(dex_name),
+                last_updated: now,
+            }))
         }
     }
 }
@@ -181,4 +186,18 @@ pub async fn preload_reserve_cache(
     println!("[CACHE] Success: {}, Errors: {}, Total: {}", success_count, error_count, total_pairs);
     println!("[CACHE] V2 pools: {}, V3 pools: {}", v2_loaded, v3_loaded);
     println!("[CACHE] Average speed: {:.2} pools/sec", total_pairs as f64 / duration.as_secs_f64());
+    
+    // Debug: Show V3 pool fees
+    let mut v3_fees = std::collections::HashMap::new();
+    for entry in reserve_cache.iter() {
+        if entry.value().pool_type == PoolType::V3 {
+            if let Some(fee) = entry.value().fee {
+                *v3_fees.entry(fee).or_insert(0) += 1;
+            }
+        }
+    }
+    println!("[CACHE] V3 Pool Fee Distribution:");
+    for (fee, count) in v3_fees.iter() {
+        println!("  {} bps ({}%): {} pools", fee, *fee as f64 / 100.0, count);
+    }
 }
