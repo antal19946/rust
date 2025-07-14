@@ -1,2 +1,4 @@
 /target
-data/
+
+# Ignore the data directory
+/data/
