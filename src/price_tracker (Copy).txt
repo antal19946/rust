@@ -26,13 +26,13 @@ use std::time::Instant;
 /// Start the price tracker: subscribe to V2 Sync and V3 Swap events, update ReserveCache in real time.
 pub async fn start_price_tracker(
     ws_provider: Arc<Provider<Ws>>,
-    // http_provider: Arc<Provider<Http>>,
+    http_provider: Arc<Provider<Http>>,
     reserve_cache: Arc<ReserveCache>,
-    // token_index: Arc<TokenIndexMap>,
-    // precomputed_route_cache: Arc<DashMap<u32, Vec<RoutePath>>>,
-    // opportunity_tx: mpsc::Sender<ArbitrageOpportunity>,
-    // token_tax_map: Arc<TokenTaxMap>,
-    // config: Config,
+    token_index: Arc<TokenIndexMap>,
+    precomputed_route_cache: Arc<DashMap<u32, Vec<RoutePath>>>,
+    opportunity_tx: mpsc::Sender<ArbitrageOpportunity>,
+    token_tax_map: Arc<TokenTaxMap>,
+    config: Config,
 ) -> anyhow::Result<()> {
     // Collect all V2 and V3 pool addresses from the cache
     let mut v2_addresses = vec![];
@@ -65,11 +65,11 @@ pub async fn start_price_tracker(
         .topic0(v2_sync_topic)
         .address(v2_addresses.clone());
     let reserve_cache_v2 = reserve_cache.clone();
-    // let token_index_v2 = token_index.clone();
-    // let precomputed_route_cache_v2 = precomputed_route_cache.clone();
-    // let opportunity_tx_v2 = opportunity_tx.clone();
+    let token_index_v2 = token_index.clone();
+    let precomputed_route_cache_v2 = precomputed_route_cache.clone();
+    let opportunity_tx_v2 = opportunity_tx.clone();
     let ws_provider_v2 = ws_provider.clone();
-    // let token_tax_map_v2 = token_tax_map.clone();
+    let token_tax_map_v2 = token_tax_map.clone();
 
     tokio::spawn(async move {
         let mut retry_count = 0;
@@ -80,11 +80,11 @@ pub async fn start_price_tracker(
                 &ws_provider_v2,
                 &v2_filter,
                 &reserve_cache_v2,
-                // &token_index_v2,
-                // &precomputed_route_cache_v2,
-                // &opportunity_tx_v2,
-                // &token_tax_map_v2,
-                // &config,
+                &token_index_v2,
+                &precomputed_route_cache_v2,
+                &opportunity_tx_v2,
+                &token_tax_map_v2,
+                &config,
             )
             .await
             {
@@ -123,12 +123,12 @@ pub async fn start_price_tracker(
         .topic0(vec![uniswap_v3_swap_topic, pancakeswap_v3_swap_topic]);
 
     let reserve_cache_v3 = reserve_cache.clone();
-    // let token_index_v3 = token_index.clone();
-    // let precomputed_route_cache_v3 = precomputed_route_cache.clone();
-    // let opportunity_tx_v3 = opportunity_tx.clone();
-    // let http_provider_v3 = http_provider.clone();
+    let token_index_v3 = token_index.clone();
+    let precomputed_route_cache_v3 = precomputed_route_cache.clone();
+    let opportunity_tx_v3 = opportunity_tx.clone();
+    let http_provider_v3 = http_provider.clone();
     let ws_provider_v3 = ws_provider.clone();
-    // let token_tax_map_v3 = token_tax_map.clone();
+    let token_tax_map_v3 = token_tax_map.clone();
 
     tokio::spawn(async move {
         let mut retry_count = 0;
@@ -139,11 +139,11 @@ pub async fn start_price_tracker(
                 &ws_provider_v3,
                 &v3_filter,
                 &reserve_cache_v3,
-                // &http_provider_v3,
-                // &token_index_v3,
-                // &precomputed_route_cache_v3,
-                // &opportunity_tx_v3,
-                // &token_tax_map_v3,
+                &http_provider_v3,
+                &token_index_v3,
+                &precomputed_route_cache_v3,
+                &opportunity_tx_v3,
+                &token_tax_map_v3,
             )
             .await
             {
@@ -180,11 +180,11 @@ async fn run_v2_monitoring_loop(
     ws_provider: &Arc<Provider<Ws>>,
     filter: &Filter,
     reserve_cache: &Arc<ReserveCache>,
-    // token_index: &Arc<TokenIndexMap>,
-    // precomputed_route_cache: &Arc<DashMap<u32, Vec<RoutePath>>>,
-    // opportunity_tx: &mpsc::Sender<ArbitrageOpportunity>,
-    // token_tax_map: &Arc<TokenTaxMap>,
-    // config: &Config,
+    token_index: &Arc<TokenIndexMap>,
+    precomputed_route_cache: &Arc<DashMap<u32, Vec<RoutePath>>>,
+    opportunity_tx: &mpsc::Sender<ArbitrageOpportunity>,
+    token_tax_map: &Arc<TokenTaxMap>,
+    config: &Config,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut retry_count = 0;
     const MAX_RETRIES: u32 = 10;
@@ -201,11 +201,11 @@ async fn run_v2_monitoring_loop(
             ws_provider,
             filter,
             reserve_cache,
-            // token_index,
-            // precomputed_route_cache,
-            // opportunity_tx,
-            // token_tax_map,
-            // &config,
+            token_index,
+            precomputed_route_cache,
+            opportunity_tx,
+            token_tax_map,
+            &config,
         )
         .await
         {
@@ -241,11 +241,11 @@ async fn run_single_v2_session(
     ws_provider: &Arc<Provider<Ws>>,
     filter: &Filter,
     reserve_cache: &Arc<ReserveCache>,
-    // token_index: &Arc<TokenIndexMap>,
-    // precomputed_route_cache: &Arc<DashMap<u32, Vec<RoutePath>>>,
-    // opportunity_tx: &mpsc::Sender<ArbitrageOpportunity>,
-    // token_tax_map: &Arc<TokenTaxMap>,
-    // config: &Config,
+    token_index: &Arc<TokenIndexMap>,
+    precomputed_route_cache: &Arc<DashMap<u32, Vec<RoutePath>>>,
+    opportunity_tx: &mpsc::Sender<ArbitrageOpportunity>,
+    token_tax_map: &Arc<TokenTaxMap>,
+    config: &Config,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("🔍 DEBUG: Starting single V2 monitoring session...");
 
@@ -304,11 +304,11 @@ async fn run_single_v2_session(
                             handle_v2_sync_event_with_arbitrage(
                                 log,
                                 reserve_cache,
-                                // token_index,
-                                // precomputed_route_cache,
-                                // opportunity_tx,
-                                // token_tax_map,
-                                // &config,
+                                token_index,
+                                precomputed_route_cache,
+                                opportunity_tx,
+                                token_tax_map,
+                                &config,
                             )
                         ).await {
                             Ok(result) => {
@@ -345,11 +345,11 @@ async fn run_v3_monitoring_loop(
     ws_provider: &Arc<Provider<Ws>>,
     filter: &Filter,
     reserve_cache: &Arc<ReserveCache>,
-    // http_provider: &Arc<Provider<Http>>,
-    // token_index: &Arc<TokenIndexMap>,
-    // precomputed_route_cache: &Arc<DashMap<u32, Vec<RoutePath>>>,
-    // opportunity_tx: &mpsc::Sender<ArbitrageOpportunity>,
-    // token_tax_map: &Arc<TokenTaxMap>,
+    http_provider: &Arc<Provider<Http>>,
+    token_index: &Arc<TokenIndexMap>,
+    precomputed_route_cache: &Arc<DashMap<u32, Vec<RoutePath>>>,
+    opportunity_tx: &mpsc::Sender<ArbitrageOpportunity>,
+    token_tax_map: &Arc<TokenTaxMap>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut retry_count = 0;
     const MAX_RETRIES: u32 = 10;
@@ -359,11 +359,11 @@ async fn run_v3_monitoring_loop(
             ws_provider,
             filter,
             reserve_cache,
-            // http_provider,
-            // token_index,
-            // precomputed_route_cache,
-            // opportunity_tx,
-            // token_tax_map,
+            http_provider,
+            token_index,
+            precomputed_route_cache,
+            opportunity_tx,
+            token_tax_map,
         )
         .await
         {
@@ -399,11 +399,11 @@ async fn run_single_v3_session(
     ws_provider: &Arc<Provider<Ws>>,
     filter: &Filter,
     reserve_cache: &Arc<ReserveCache>,
-    // http_provider: &Arc<Provider<Http>>,
-    // token_index: &Arc<TokenIndexMap>,
-    // precomputed_route_cache: &Arc<DashMap<u32, Vec<RoutePath>>>,
-    // opportunity_tx: &mpsc::Sender<ArbitrageOpportunity>,
-    // token_tax_map: &Arc<TokenTaxMap>,
+    http_provider: &Arc<Provider<Http>>,
+    token_index: &Arc<TokenIndexMap>,
+    precomputed_route_cache: &Arc<DashMap<u32, Vec<RoutePath>>>,
+    opportunity_tx: &mpsc::Sender<ArbitrageOpportunity>,
+    token_tax_map: &Arc<TokenTaxMap>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut v3_stream = match ws_provider.subscribe_logs(filter).await {
         Ok(stream) => {
@@ -429,11 +429,11 @@ async fn run_single_v3_session(
                     handle_v3_swap_event_with_arbitrage(
                         log,
                         reserve_cache,
-                        // http_provider,
-                        // token_index,
-                        // precomputed_route_cache,
-                        // opportunity_tx,
-                        // token_tax_map,
+                        http_provider,
+                        token_index,
+                        precomputed_route_cache,
+                        opportunity_tx,
+                        token_tax_map,
                     ),
                 )
                 .await
@@ -472,11 +472,11 @@ async fn run_single_v3_session(
 async fn handle_v2_sync_event_with_arbitrage(
     log: Log,
     reserve_cache: &Arc<ReserveCache>,
-    // token_index: &Arc<TokenIndexMap>,
-    // precomputed_route_cache: &Arc<DashMap<u32, Vec<RoutePath>>>,
-    // opportunity_tx: &mpsc::Sender<ArbitrageOpportunity>,
-    // token_tax_map: &Arc<TokenTaxMap>,
-    // config: &Config,
+    token_index: &Arc<TokenIndexMap>,
+    precomputed_route_cache: &Arc<DashMap<u32, Vec<RoutePath>>>,
+    opportunity_tx: &mpsc::Sender<ArbitrageOpportunity>,
+    token_tax_map: &Arc<TokenTaxMap>,
+    config: &Config,
 ) -> anyhow::Result<()> {
     // Sync(address indexed pair, uint112 reserve0, uint112 reserve1)
     if log.data.0.len() < 64 {
@@ -502,32 +502,32 @@ async fn handle_v2_sync_event_with_arbitrage(
         state.reserve1 = Some(new_reserve1);
         state.last_updated = chrono::Utc::now().timestamp() as u64;
     }
-println!("[DEBUG] Updated V2 pool cache for {:?}: reserve0 = {}, reserve1 = {}", pool, new_reserve0, new_reserve1);
+
     // Calculate which token was bought/sold
     // let token0_change = new_reserve0.saturating_sub(old_reserve0);
     // let token1_change = new_reserve1.saturating_sub(old_reserve1);
 
     // Determine swap direction and amount
-    // let (token_x, token_x_amount) = if new_reserve0 < old_reserve0 {
-    //     // token0 bought (reserve0 decreased)
-    //     if let Some(pool_data) = reserve_cache.get(&pool) {
-    //         (pool_data.token0, old_reserve0.saturating_sub(new_reserve0))
-    //     } else {
-    //         return Ok(());
-    //     }
-    // } else if new_reserve1 < old_reserve1 {
-    //     // token1 bought (reserve1 decreased)
-    //     if let Some(pool_data) = reserve_cache.get(&pool) {
-    //         (pool_data.token1, old_reserve1.saturating_sub(new_reserve1))
-    //     } else {
-    //         return Ok(());
-    //     }
-    // } else {
-    //     return Ok(());
-    // };
+    let (token_x, token_x_amount) = if new_reserve0 < old_reserve0 {
+        // token0 bought (reserve0 decreased)
+        if let Some(pool_data) = reserve_cache.get(&pool) {
+            (pool_data.token0, old_reserve0.saturating_sub(new_reserve0))
+        } else {
+            return Ok(());
+        }
+    } else if new_reserve1 < old_reserve1 {
+        // token1 bought (reserve1 decreased)
+        if let Some(pool_data) = reserve_cache.get(&pool) {
+            (pool_data.token1, old_reserve1.saturating_sub(new_reserve1))
+        } else {
+            return Ok(());
+        }
+    } else {
+        return Ok(());
+    };
     
 
-    // // Create decoded swap for arbitrage detection
+    // Create decoded swap for arbitrage detection
     // let decoded_swap = DecodedSwap {
     //     tx_hash: H160::zero(), // Sync events don't have direct tx hash
     //     pool_address: pool,
@@ -617,11 +617,11 @@ println!("[DEBUG] Updated V2 pool cache for {:?}: reserve0 = {}, reserve1 = {}",
 async fn handle_v3_swap_event_with_arbitrage(
     log: Log,
     reserve_cache: &Arc<ReserveCache>,
-    // _http_provider: &Arc<Provider<Http>>,
-    // _token_index: &Arc<TokenIndexMap>,
-    // _precomputed_route_cache: &Arc<DashMap<u32, Vec<RoutePath>>>,
-    // _opportunity_tx: &mpsc::Sender<ArbitrageOpportunity>,
-    // _token_tax_map: &Arc<TokenTaxMap>,
+    _http_provider: &Arc<Provider<Http>>,
+    _token_index: &Arc<TokenIndexMap>,
+    _precomputed_route_cache: &Arc<DashMap<u32, Vec<RoutePath>>>,
+    _opportunity_tx: &mpsc::Sender<ArbitrageOpportunity>,
+    _token_tax_map: &Arc<TokenTaxMap>,
 ) -> anyhow::Result<()> {
     // println!("[DEBUG] V3 event handler called for pool {:?}", log.address);
     if log.topics.is_empty() {
@@ -689,7 +689,6 @@ async fn handle_v3_swap_event_with_arbitrage(
         state.tick = Some(tick);
         state.last_updated = chrono::Utc::now().timestamp() as u64;
     }
-    println!("[DEBUG] Updated V3 pool cache for {:?}: sqrt_price_x96 = {}, liquidity = {}, tick = {}", pool, sqrt_price_x96, liquidity, tick);
     Ok(())
 }
 
@@ -799,7 +798,7 @@ pub async fn find_arbitrage_opportunity_from_price_tracker(
                 };
                 let amount = u256_to_f64_lossy(&profit) / 10_f64.powi(18 as i32);
                 let profit_usd = amount * price_usd;
-                if profit_usd > 0.02 {
+                if profit_usd > 0.0000002 {
                     // Calculate profit percentage (profit / amount_in * 100)
                     let profit_percentage = if amount_in > U256::zero() {
                         // Convert to f64 for percentage calculation
@@ -821,8 +820,8 @@ pub async fn find_arbitrage_opportunity_from_price_tracker(
                     //     .collect();
 
                     // Merge pools
-                    let mut merged_pools = buy_path.pools.clone();
-                    merged_pools.extend_from_slice(&sell_path.pools);
+                    // let mut merged_pools = buy_path.pools.clone();
+                    // merged_pools.extend_from_slice(&sell_path.pools);
 
                     return Some(crate::arbitrage_finder::SimulatedRoute {
                         merged_amounts,
@@ -838,7 +837,7 @@ pub async fn find_arbitrage_opportunity_from_price_tracker(
                         sell_symbols,
                             buy_pools: buy_path.pools.clone(),
                         sell_pools: sell_path.pools.clone(),
-                        merged_pools,
+                        // merged_pools,
                         profit,
                         profit_percentage,
                         buy_path: buy_path.clone(),

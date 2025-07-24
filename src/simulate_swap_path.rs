@@ -133,12 +133,49 @@ pub fn simulate_buy_path(
                 let mut amount_in = numerator.checked_div(denominator)? + U256::one();
                 
                 // --- Apply buy tax if exists ---
-                if let Some(tax_info) = token_tax_map.get(&entry.token0) {
-                    let tax = tax_info.buy_tax / 100.0;
-                    if tax > 0.0 {
+                let input_token_address = if input_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&input_token_address) {
+                    let buy_tax = tax_info.buy_tax / 100.0;
+                    if buy_tax > 0.0 {
                         let amount_in_f = amount_in.as_u128() as f64;
-                        let taxed = amount_in_f / (1.0 - tax);
+                        let taxed = amount_in_f / (1.0 - buy_tax);
                         amount_in = U256::from(taxed as u128);
+                    }
+                }
+                
+                // --- Apply sell tax on input_token (pool deposit) ---
+                let input_token_address = if input_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&input_token_address) {
+                    let sell_tax = tax_info.sell_tax / 100.0;
+                    if sell_tax > 0.0 {
+                        let amount_in_f = amount_in.as_u128() as f64;
+                        let taxed = amount_in_f / (1.0 - sell_tax);
+                        amount_in = U256::from(taxed as u128);
+                    }
+                }
+                // --- Apply buy tax on output_token (pool withdrawal) ---
+                let output_token_address = if output_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&output_token_address) {
+                    let buy_tax = tax_info.buy_tax / 100.0;
+                    if buy_tax >= 1.0 {
+                        println!("[TAX WARNING] Buy tax >= 100% for token {:?}, setting amount_out to zero", output_token_address);
+                        amount_out = U256::zero();
+                    } else if buy_tax > 0.0 {
+                        let amount_out_f = amount_out.as_u128() as f64;
+                        let taxed = amount_out_f * (1.0 - buy_tax);
+                        amount_out = U256::from(taxed as u128);
                     }
                 }
                 
@@ -176,12 +213,49 @@ pub fn simulate_buy_path(
                 let mut amount_in = crate::v3_math::calculate_v3_buy_amount(amount_out, sqrt_price_x96, liquidity, fee, zero_for_one)?;
                 
                 // --- Apply buy tax if exists ---
-                if let Some(tax_info) = token_tax_map.get(&entry.token0) {
-                    let tax = tax_info.buy_tax / 100.0;
-                    if tax > 0.0 {
+                let input_token_address = if input_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&input_token_address) {
+                    let buy_tax = tax_info.buy_tax / 100.0;
+                    if buy_tax > 0.0 {
                         let amount_in_f = amount_in.as_u128() as f64;
-                        let taxed = amount_in_f / (1.0 - tax);
+                        let taxed = amount_in_f / (1.0 - buy_tax);
                         amount_in = U256::from(taxed as u128);
+                    }
+                }
+                
+                // --- Apply sell tax on input_token (pool deposit) ---
+                let input_token_address = if input_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&input_token_address) {
+                    let sell_tax = tax_info.sell_tax / 100.0;
+                    if sell_tax > 0.0 {
+                        let amount_in_f = amount_in.as_u128() as f64;
+                        let taxed = amount_in_f / (1.0 - sell_tax);
+                        amount_in = U256::from(taxed as u128);
+                    }
+                }
+                // --- Apply buy tax on output_token (pool withdrawal) ---
+                let output_token_address = if output_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&output_token_address) {
+                    let buy_tax = tax_info.buy_tax / 100.0;
+                    if buy_tax >= 1.0 {
+                        println!("[TAX WARNING] Buy tax >= 100% for token {:?}, setting amount_out to zero", output_token_address);
+                        amount_out = U256::zero();
+                    } else if buy_tax > 0.0 {
+                        let amount_out_f = amount_out.as_u128() as f64;
+                        let taxed = amount_out_f * (1.0 - buy_tax);
+                        amount_out = U256::from(taxed as u128);
                     }
                 }
                 
@@ -273,12 +347,35 @@ pub fn simulate_sell_path(
                 let mut amount_out = numerator.checked_div(denominator)?;
                 
                 // --- Apply sell tax if exists ---
-                if let Some(tax_info) = token_tax_map.get(&entry.token1) {
-                    let tax = tax_info.sell_tax / 100.0;
-                    if tax > 0.0 {
+                let output_token_address = if output_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&output_token_address) {
+                    let sell_tax = tax_info.sell_tax / 100.0;
+                    if sell_tax >= 1.0 {
+                        println!("[TAX WARNING] Sell tax >= 100% for token {:?}, setting amount_out to zero", output_token_address);
+                        amount_out = U256::zero();
+                    } else if sell_tax > 0.0 {
                         let amount_out_f = amount_out.as_u128() as f64;
-                        let taxed = amount_out_f * (1.0 - tax);
+                        let taxed = amount_out_f * (1.0 - sell_tax);
                         amount_out = U256::from(taxed as u128);
+                    }
+                }
+                
+                // --- Apply buy tax on input_token (pool deposit) ---
+                let input_token_address = if input_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&input_token_address) {
+                    let buy_tax = tax_info.buy_tax / 100.0;
+                    if buy_tax > 0.0 {
+                        let amount_in_f = amount_in.as_u128() as f64;
+                        let taxed = amount_in_f / (1.0 - buy_tax);
+                        amount_in = U256::from(taxed as u128);
                     }
                 }
                 
@@ -322,12 +419,35 @@ pub fn simulate_sell_path(
                 )?;
                 
                 // --- Apply sell tax if exists ---
-                if let Some(tax_info) = token_tax_map.get(&entry.token1) {
-                    let tax = tax_info.sell_tax / 100.0;
-                    if tax > 0.0 {
+                let output_token_address = if output_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&output_token_address) {
+                    let sell_tax = tax_info.sell_tax / 100.0;
+                    if sell_tax >= 1.0 {
+                        println!("[TAX WARNING] Sell tax >= 100% for token {:?}, setting amount_out to zero", output_token_address);
+                        amount_out = U256::zero();
+                    } else if sell_tax > 0.0 {
                         let amount_out_f = amount_out.as_u128() as f64;
-                        let taxed = amount_out_f * (1.0 - tax);
+                        let taxed = amount_out_f * (1.0 - sell_tax);
                         amount_out = U256::from(taxed as u128);
+                    }
+                }
+                
+                // --- Apply buy tax on input_token (pool deposit) ---
+                let input_token_address = if input_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&input_token_address) {
+                    let buy_tax = tax_info.buy_tax / 100.0;
+                    if buy_tax > 0.0 {
+                        let amount_in_f = amount_in.as_u128() as f64;
+                        let taxed = amount_in_f / (1.0 - buy_tax);
+                        amount_in = U256::from(taxed as u128);
                     }
                 }
                 
@@ -571,12 +691,52 @@ pub fn simulate_buy_path_amounts_vec(
                 let mut amount_in = numerator.checked_div(denominator)? + U256::one();
                 
                 // --- Apply buy tax if exists ---
-                if let Some(tax_info) = token_tax_map.get(&entry.token0) {
-                    let tax = tax_info.buy_tax / 100.0;
-                    if tax > 0.0 {
+                let input_token_address = if input_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&input_token_address) {
+                    let buy_tax = tax_info.buy_tax / 100.0;
+                    if buy_tax >= 1.0 {
+                        println!("[TAX WARNING] Buy tax >= 100% for token {:?}, setting amount_in to zero", input_token_address);
+                        amount_in = U256::zero();
+                    } else if buy_tax > 0.0 {
                         let amount_in_f = amount_in.as_u128() as f64;
-                        let taxed = amount_in_f / (1.0 - tax);
+                        let taxed = amount_in_f / (1.0 - buy_tax);
                         amount_in = U256::from(taxed as u128);
+                    }
+                }
+                
+                // --- Apply sell tax on input_token (pool deposit) ---
+                let input_token_address = if input_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&input_token_address) {
+                    let sell_tax = tax_info.sell_tax / 100.0;
+                    if sell_tax > 0.0 {
+                        let amount_in_f = amount_in.as_u128() as f64;
+                        let taxed = amount_in_f / (1.0 - sell_tax);
+                        amount_in = U256::from(taxed as u128);
+                    }
+                }
+                // --- Apply buy tax on output_token (pool withdrawal) ---
+                let output_token_address = if output_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&output_token_address) {
+                    let buy_tax = tax_info.buy_tax / 100.0;
+                    if buy_tax >= 1.0 {
+                        println!("[TAX WARNING] Buy tax >= 100% for token {:?}, setting amount_out to zero", output_token_address);
+                        amount_out = U256::zero();
+                    } else if buy_tax > 0.0 {
+                        let amount_out_f = amount_out.as_u128() as f64;
+                        let taxed = amount_out_f * (1.0 - buy_tax);
+                        amount_out = U256::from(taxed as u128);
                     }
                 }
                 
@@ -594,12 +754,52 @@ pub fn simulate_buy_path_amounts_vec(
                 let mut amount_in = crate::v3_math::calculate_v3_buy_amount(amount_out, sqrt_price_x96, liquidity, fee, zero_for_one)?;
                 
                 // --- Apply buy tax if exists ---
-                if let Some(tax_info) = token_tax_map.get(&entry.token0) {
-                    let tax = tax_info.buy_tax / 100.0;
-                    if tax > 0.0 {
+                let input_token_address = if input_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&input_token_address) {
+                    let buy_tax = tax_info.buy_tax / 100.0;
+                    if buy_tax >= 1.0 {
+                        println!("[TAX WARNING] Buy tax >= 100% for token {:?}, setting amount_in to zero", input_token_address);
+                        amount_in = U256::zero();
+                    } else if buy_tax > 0.0 {
                         let amount_in_f = amount_in.as_u128() as f64;
-                        let taxed = amount_in_f / (1.0 - tax);
+                        let taxed = amount_in_f / (1.0 - buy_tax);
                         amount_in = U256::from(taxed as u128);
+                    }
+                }
+                
+                // --- Apply sell tax on input_token (pool deposit) ---
+                let input_token_address = if input_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&input_token_address) {
+                    let sell_tax = tax_info.sell_tax / 100.0;
+                    if sell_tax > 0.0 {
+                        let amount_in_f = amount_in.as_u128() as f64;
+                        let taxed = amount_in_f / (1.0 - sell_tax);
+                        amount_in = U256::from(taxed as u128);
+                    }
+                }
+                // --- Apply buy tax on output_token (pool withdrawal) ---
+                let output_token_address = if output_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&output_token_address) {
+                    let buy_tax = tax_info.buy_tax / 100.0;
+                    if buy_tax >= 1.0 {
+                        println!("[TAX WARNING] Buy tax >= 100% for token {:?}, setting amount_out to zero", output_token_address);
+                        amount_out = U256::zero();
+                    } else if buy_tax > 0.0 {
+                        let amount_out_f = amount_out.as_u128() as f64;
+                        let taxed = amount_out_f * (1.0 - buy_tax);
+                        amount_out = U256::from(taxed as u128);
                     }
                 }
                 
@@ -661,12 +861,35 @@ pub fn simulate_sell_path_amounts_vec(
                 let mut amount_out = numerator.checked_div(denominator)?;
                 
                 // --- Apply sell tax if exists ---
-                if let Some(tax_info) = token_tax_map.get(&entry.token1) {
-                    let tax = tax_info.sell_tax / 100.0;
-                    if tax > 0.0 {
+                let output_token_address = if output_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&output_token_address) {
+                    let sell_tax = tax_info.sell_tax / 100.0;
+                    if sell_tax >= 1.0 {
+                        println!("[TAX WARNING] Sell tax >= 100% for token {:?}, setting amount_out to zero", output_token_address);
+                        amount_out = U256::zero();
+                    } else if sell_tax > 0.0 {
                         let amount_out_f = amount_out.as_u128() as f64;
-                        let taxed = amount_out_f * (1.0 - tax);
+                        let taxed = amount_out_f * (1.0 - sell_tax);
                         amount_out = U256::from(taxed as u128);
+                    }
+                }
+                
+                // --- Apply buy tax on input_token (pool deposit) ---
+                let input_token_address = if input_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&input_token_address) {
+                    let buy_tax = tax_info.buy_tax / 100.0;
+                    if buy_tax > 0.0 {
+                        let amount_in_f = amount_in.as_u128() as f64;
+                        let taxed = amount_in_f / (1.0 - buy_tax);
+                        amount_in = U256::from(taxed as u128);
                     }
                 }
                 
@@ -686,12 +909,35 @@ pub fn simulate_sell_path_amounts_vec(
                 };
                 
                 // --- Apply sell tax if exists ---
-                if let Some(tax_info) = token_tax_map.get(&entry.token1) {
-                    let tax = tax_info.sell_tax / 100.0;
-                    if tax > 0.0 {
+                let output_token_address = if output_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&output_token_address) {
+                    let sell_tax = tax_info.sell_tax / 100.0;
+                    if sell_tax >= 1.0 {
+                        println!("[TAX WARNING] Sell tax >= 100% for token {:?}, setting amount_out to zero", output_token_address);
+                        amount_out = U256::zero();
+                    } else if sell_tax > 0.0 {
                         let amount_out_f = amount_out.as_u128() as f64;
-                        let taxed = amount_out_f * (1.0 - tax);
+                        let taxed = amount_out_f * (1.0 - sell_tax);
                         amount_out = U256::from(taxed as u128);
+                    }
+                }
+                
+                // --- Apply buy tax on input_token (pool deposit) ---
+                let input_token_address = if input_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&input_token_address) {
+                    let buy_tax = tax_info.buy_tax / 100.0;
+                    if buy_tax > 0.0 {
+                        let amount_in_f = amount_in.as_u128() as f64;
+                        let taxed = amount_in_f / (1.0 - buy_tax);
+                        amount_in = U256::from(taxed as u128);
                     }
                 }
                 
@@ -715,9 +961,10 @@ pub fn simulate_sell_path_amounts_array(
     config: &Config,
 ) -> Option<Vec<U256>> {
     let mut amounts = Vec::with_capacity(route.hops.len());
-    amounts.push(token_x_amount); // Start with input amount
-    
+    // Start with input amount (before any tax)
     let mut amount_in = token_x_amount;
+    amounts.push(amount_in);
+
     for (i, pool) in route.pools.iter().enumerate() {
         let pool_data = cache.get(pool)?;
         let entry = pool_data.value();
@@ -725,7 +972,28 @@ pub fn simulate_sell_path_amounts_array(
         let token1_idx = *token_index_map.address_to_index.get(&entry.token1)? as u32;
         let input_token = route.hops[i];
         let output_token = route.hops[i + 1];
-        
+
+        // --- Apply sell tax on input_token (pool deposit) ---
+        let input_token_address = if input_token == token0_idx {
+            entry.token0
+        } else {
+            entry.token1
+        };
+        if let Some(tax_info) = token_tax_map.get(&input_token_address) {
+            let sell_tax = tax_info.sell_tax / 100.0;
+            if sell_tax >= 1.0 {
+                // println!("[TAX WARNING] Sell tax >= 100% for token {:?}, setting amount_in to zero", input_token_address);
+                amount_in = U256::zero();
+            } else if sell_tax > 0.0 {
+                let amount_in_f = amount_in.as_u128() as f64;
+                let taxed = amount_in_f * (1.0 - sell_tax);
+                amount_in = U256::from(taxed as u128);
+                println!("[TAX INFO] Applied sell tax on input token {:?}: original={}, taxed={}, SELL TAX={}", 
+                    input_token_address, amount_in_f, taxed, sell_tax);
+            }
+        }
+
+        // --- Calculate pool output (before buy tax) ---
         let mut amount_out = match entry.pool_type {
             crate::cache::PoolType::V2 => {
                 let reserve0 = entry.reserve0?;
@@ -735,62 +1003,56 @@ pub fn simulate_sell_path_amounts_array(
                 } else {
                     (reserve1, reserve0)
                 };
-                
                 // Get dynamic fee based on DEX name
                 let fee = if let Some(dex_name) = &entry.dex_name {
                     config.get_v2_fee(dex_name)
                 } else {
                     25 // Default to 0.25% if no DEX name
                 };
-                
-                // Dynamic V2 getAmountsOut formula based on fee
                 let fee_numerator = 10000 - fee;
                 let amount_in_with_fee = amount_in * U256::from(fee_numerator);
                 let numerator = amount_in_with_fee * reserve_out;
                 let denominator = reserve_in * U256::from(10_000u32) + amount_in_with_fee;
-                let mut amount_out = numerator.checked_div(denominator)?;
-                
-                // --- Apply sell tax if exists ---
-                if let Some(tax_info) = token_tax_map.get(&entry.token1) {
-                    let tax = tax_info.sell_tax / 100.0;
-                    if tax > 0.0 {
-                        let amount_out_f = amount_out.as_u128() as f64;
-                        let taxed = amount_out_f * (1.0 - tax);
-                        amount_out = U256::from(taxed as u128);
-                    }
-                }
-                
-                amount_out
+                numerator.checked_div(denominator)?
             }
             crate::cache::PoolType::V3 => {
                 let sqrt_price_x96 = entry.sqrt_price_x96?;
                 let liquidity = entry.liquidity?;
                 let fee = entry.fee.unwrap_or(3000);
                 let zero_for_one = input_token == token0_idx;
-                let mut amount_out = if zero_for_one {
+                if zero_for_one {
                     simulate_v3_swap_single(amount_in, sqrt_price_x96, liquidity, fee, true)?
                 } else {
                     simulate_v3_swap_single(amount_in, sqrt_price_x96, liquidity, fee, false)?
-                };
-                
-                // --- Apply sell tax if exists ---
-                if let Some(tax_info) = token_tax_map.get(&entry.token1) {
-                    let tax = tax_info.sell_tax / 100.0;
-                    if tax > 0.0 {
-                        let amount_out_f = amount_out.as_u128() as f64;
-                        let taxed = amount_out_f * (1.0 - tax);
-                        amount_out = U256::from(taxed as u128);
-                    }
                 }
-                
-                amount_out
             }
         };
-        
+
+        // --- Apply buy tax on output_token (pool withdrawal) ---
+        let output_token_address = if output_token == token0_idx {
+            entry.token0
+        } else {
+            entry.token1
+        };
+        if let Some(tax_info) = token_tax_map.get(&output_token_address) {
+            let buy_tax = tax_info.buy_tax / 100.0;
+            if buy_tax >= 1.0 {
+                println!("[TAX WARNING] Buy tax >= 100% for token {:?}, setting amount_out to zero", output_token_address);
+                amount_out = U256::zero();
+            } else if buy_tax > 0.0 {
+                let amount_out_f = amount_out.as_u128() as f64;
+                let taxed = amount_out_f * (1.0 - buy_tax);
+                amount_out = U256::from(taxed as u128);
+                println!("[TAX INFO] Applied buy tax on output token {:?}: original={}, taxed={}", 
+                    output_token_address, amount_out_f, taxed);
+            }
+        }
+
+        // Store the after-tax output for this hop
         amounts.push(amount_out);
+        // The after-tax output becomes the input for the next hop
         amount_in = amount_out;
     }
-    
     Some(amounts)
 }
 
@@ -848,11 +1110,34 @@ pub fn simulate_buy_path_amounts_array(
                 let mut amount_in = numerator.checked_div(denominator)? + U256::one();
                 
                 // --- Apply buy tax if exists ---
-                if let Some(tax_info) = token_tax_map.get(&entry.token0) {
-                    let tax = tax_info.buy_tax / 100.0;
-                    if tax > 0.0 {
+                let input_token_address = if input_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&input_token_address) {
+                    let buy_tax = tax_info.buy_tax / 100.0;
+                    if buy_tax >= 1.0 {
+                        println!("[TAX WARNING] Buy tax >= 100% for token {:?}, setting amount_in to zero", input_token_address);
+                        amount_in = U256::zero();
+                    } else if buy_tax > 0.0 {
                         let amount_in_f = amount_in.as_u128() as f64;
-                        let taxed = amount_in_f / (1.0 - tax);
+                        let taxed = amount_in_f / (1.0 - buy_tax);
+                        amount_in = U256::from(taxed as u128);
+                    }
+                }
+                
+                // --- Apply sell tax on input_token (pool deposit) ---
+                let input_token_address = if input_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&input_token_address) {
+                    let sell_tax = tax_info.sell_tax / 100.0;
+                    if sell_tax > 0.0 {
+                        let amount_in_f = amount_in.as_u128() as f64;
+                        let taxed = amount_in_f / (1.0 - sell_tax);
                         amount_in = U256::from(taxed as u128);
                     }
                 }
@@ -869,11 +1154,34 @@ pub fn simulate_buy_path_amounts_array(
                 let mut amount_in = crate::v3_math::calculate_v3_buy_amount(amount_out, sqrt_price_x96, liquidity, fee, zero_for_one)?;
                 
                 // --- Apply buy tax if exists ---
-                if let Some(tax_info) = token_tax_map.get(&entry.token0) {
-                    let tax = tax_info.buy_tax / 100.0;
-                    if tax > 0.0 {
+                let input_token_address = if input_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&input_token_address) {
+                    let buy_tax = tax_info.buy_tax / 100.0;
+                    if buy_tax >= 1.0 {
+                        println!("[TAX WARNING] Buy tax >= 100% for token {:?}, setting amount_in to zero", input_token_address);
+                        amount_in = U256::zero();
+                    } else if buy_tax > 0.0 {
                         let amount_in_f = amount_in.as_u128() as f64;
-                        let taxed = amount_in_f / (1.0 - tax);
+                        let taxed = amount_in_f / (1.0 - buy_tax);
+                        amount_in = U256::from(taxed as u128);
+                    }
+                }
+                
+                // --- Apply sell tax on input_token (pool deposit) ---
+                let input_token_address = if input_token == token0_idx {
+                    entry.token0
+                } else {
+                    entry.token1
+                };
+                if let Some(tax_info) = token_tax_map.get(&input_token_address) {
+                    let sell_tax = tax_info.sell_tax / 100.0;
+                    if sell_tax > 0.0 {
+                        let amount_in_f = amount_in.as_u128() as f64;
+                        let taxed = amount_in_f / (1.0 - sell_tax);
                         amount_in = U256::from(taxed as u128);
                     }
                 }

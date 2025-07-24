@@ -2,7 +2,7 @@
 use crate::token_graph::{TokenGraph, GraphEdge};
 use crate::cache::{PoolType, ReserveCache};
 use crate::token_index::TokenIndexMap;
-use crate::utils::{simulate_v2_swap_safe, simulate_v3_swap_precise}; // ⬅️ Updated
+// use crate::utils::{simulate_v2_swap_safe, simulate_v3_swap_precise}; // ⬅️ Updated
 
 use primitive_types::U256;
 use smallvec::SmallVec;
@@ -103,30 +103,30 @@ pub fn simulate_path(
             _ => return 0.0,
         };
 
-        amount_in = match pool_type {
-            PoolType::V2 => simulate_v2_swap_safe(
-                amount_in,
-                if is_forward {
-                    entry.reserve0.unwrap_or(U256::zero())
-                } else {
-                    entry.reserve1.unwrap_or(U256::zero())
-                },
-                if is_forward {
-                    entry.reserve1.unwrap_or(U256::zero())
-                } else {
-                    entry.reserve0.unwrap_or(U256::zero())
-                },
-                entry.fee.unwrap_or(30),
-                is_forward,
-            ),
-            PoolType::V3 => simulate_v3_swap_precise(
-                amount_in,
-                entry.sqrt_price_x96.unwrap_or(U256::zero()),
-                entry.liquidity.unwrap_or(U256::zero()),
-                entry.fee.unwrap_or(30),
-                is_forward,
-            ),
-        };
+        // amount_in = match pool_type {
+        //     PoolType::V2 => simulate_v2_swap_safe(
+        //         amount_in,
+        //         if is_forward {
+        //             entry.reserve0.unwrap_or(U256::zero())
+        //         } else {
+        //             entry.reserve1.unwrap_or(U256::zero())
+        //         },
+        //         if is_forward {
+        //             entry.reserve1.unwrap_or(U256::zero())
+        //         } else {
+        //             entry.reserve0.unwrap_or(U256::zero())
+        //         },
+        //         entry.fee.unwrap_or(30),
+        //         is_forward,
+        //     ),
+        //     PoolType::V3 => simulate_v3_swap_precise(
+        //         amount_in,
+        //         entry.sqrt_price_x96.unwrap_or(U256::zero()),
+        //         entry.liquidity.unwrap_or(U256::zero()),
+        //         entry.fee.unwrap_or(30),
+        //         is_forward,
+        //     ),
+        // };
 
         if amount_in <= 0.0 || amount_in.is_nan() || amount_in.is_infinite() {
             return 0.0;

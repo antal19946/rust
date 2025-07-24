@@ -1,0 +1,114 @@
+{
+  "source": "price_tracker",
+  "event": {
+    "event_type": "PancakeSwapV3",
+    "address": "172fcd41e0913e95784454622d1c3724f546f849",
+    "tx_hash": "9fa78ac3e9dc147d412a96db28abf04681a25367a0d68badf0eb53159045975c",
+    "sender": "0x5efc784d444126ecc05f22c49ff3fbd7d9f4868a",
+    "recipient": "0x5efc784d444126ecc05f22c49ff3fbd7d9f4868a",
+    "amount0": "-4628065192840880982",
+    "amount1": "6000000000000000",
+    "sqrt_price_x96": "93793aa73efec9734909918",
+    "liquidity": "1fe4377f6b817e3510500",
+    "tick": "-66486",
+    "protocol_fees_token0": "0",
+    "protocol_fees_token1": "2e19b83c00"
+  },
+  "timestamp": "2025-07-23T18:05:29.502957355+00:00",
+  "block_number": 0,
+  "pool_address": "0x172fcd41e0913e95784454622d1c3724f546f849",
+  "token_x": "0x55d398326f99059ff775485246999027b3197955",
+  "token_x_amount": "4628065192840880982",
+  "estimated_profit": "177888140118164",
+  "profitable_routes_count": 2,
+  "latency_ms": 0,
+  "reserve0": null,
+  "reserve1": null,
+  "sqrt_price_x96": "2852553143387202037056278734",
+  "liquidity": "2409651482415405120685312",
+  "tx_hash": "0x9fa78ac3e9dc147d412a96db28abf04681a25367a0d68badf0eb53159045975c",
+  "tick": -66486,
+  "best_route": {
+    "merged_amounts": [
+      "5999999999999999",
+      "4628065192840880982",
+      "25690081207669030418246",
+      "6177888140118163"
+    ],
+    "profit": "177888140118164",
+    "buy_path_hops": [
+      2,
+      10
+    ],
+    "sell_path_hops": [
+      10,
+      6446,
+      2
+    ],
+    "buy_amounts": [
+      "5999999999999999",
+      "4628065192840880982"
+    ],
+    "sell_amounts": [
+      "4628065192840880982",
+      "25690081207669030418246",
+      "6177888140118163"
+    ],
+    "profit_percentage": 2.9648023353027337,
+    "buy_path_pools": [
+      "0x172fcd41e0913e95784454622d1c3724f546f849"
+    ],
+    "sell_path_pools": [
+      "0x55916ca3d42fa4b2cc0dec65b81bbc6d7b606f11",
+      "0x821add5a7d42f799154a3af118885c036a6891ff"
+    ],
+    "buy_symbols": [
+      "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+      "0x55d398326f99059ff775485246999027b3197955"
+    ],
+    "sell_symbols": [
+      "0x55d398326f99059ff775485246999027b3197955",
+      "0x97ea465e7ed3b817364dd096a614122d6082320d",
+      "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c"
+    ],
+    "buy_pools": [
+      "0x172fcd41e0913e95784454622d1c3724f546f849"
+    ],
+    "sell_pools": [
+      "0x55916ca3d42fa4b2cc0dec65b81bbc6d7b606f11",
+      "0x821add5a7d42f799154a3af118885c036a6891ff"
+    ]
+  },
+  "merged_pools_data": {
+    "0x172fcd41e0913e95784454622d1c3724f546f849": {
+      "reserve0": null,
+      "reserve1": null,
+      "sqrt_price_x96": "2852553143387202037056278734",
+      "liquidity": "2409651482415405120685312",
+      "tick": -66486,
+      "fee": 100,
+      "last_updated": 1753293927,
+      "pool_type": "V3"
+    },
+    "0x55916ca3d42fa4b2cc0dec65b81bbc6d7b606f11": {
+      "reserve0": "4166716397634972264743",
+      "reserve1": "23212822728861167188742894",
+      "sqrt_price_x96": null,
+      "liquidity": null,
+      "tick": null,
+      "fee": null,
+      "last_updated": 1753293784,
+      "pool_type": "V2"
+    },
+    "0x821add5a7d42f799154a3af118885c036a6891ff": {
+      "reserve0": "754920719969834422516729",
+      "reserve1": "188174374883228223",
+      "sqrt_price_x96": null,
+      "liquidity": null,
+      "tick": null,
+      "fee": null,
+      "last_updated": 1753293784,
+      "pool_type": "V2"
+    }
+  }
+}

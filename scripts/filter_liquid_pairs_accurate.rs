@@ -129,7 +129,7 @@ async fn check_v2_liquidity(
                 token0_decimals,
                 token1_decimals,
             );
-            if liquidity_usd >= 9.0 {
+            if liquidity_usd >= 100.0 {
                 Some(LiquidPairInfo {
                     pair_address: pair.pair_address,
                     token0: pair.token0,

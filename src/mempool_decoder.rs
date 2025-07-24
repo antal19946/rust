@@ -506,8 +506,8 @@ impl MempoolDecoder {
                         //     .collect();
 
                         // // Merge pools
-                        // let mut merged_pools = buy_path.pools.clone();
-                        // merged_pools.extend_from_slice(&sell_path.pools);
+                        let mut merged_pools = buy_path.pools.clone();
+                        merged_pools.extend_from_slice(&sell_path.pools);
 
                         // Calculate profit percentage
                         let profit_percentage = if amount_in > U256::zero() {
@@ -526,7 +526,7 @@ impl MempoolDecoder {
                             // merged_symbols,
                             buy_symbols: buy_path.hops.iter().map(|&idx| self.token_index_to_symbol(idx)).collect(),
                             sell_symbols: sell_path.hops.iter().map(|&idx| self.token_index_to_symbol(idx)).collect(),
-                            // merged_pools: merged_pools.clone(),
+                            merged_pools: merged_pools.clone(),
                             buy_pools: buy_path.pools.clone(),
                             sell_pools: sell_path.pools.clone(),
                             profit,

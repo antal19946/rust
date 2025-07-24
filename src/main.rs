@@ -15,12 +15,18 @@ mod arbitrage_finder;
 mod mempool_decoder;
 mod executor;
 mod token_tax;
-
+// mod ipc_feed;
+mod tx_decoder;
+// mod revm_sim;
+mod ipc_event_listener;
+use alloy_provider::{network::Ethereum, DynProvider, ProviderBuilder};
+use ethers::abi::token;
+use ethers::providers::{Provider, Http, Ws};
+use std::sync::Arc;
 use config::Config;
 use fetch_pairs::{PairFetcher, PairInfo};
 use cache::{ReserveCache};
-use ethers::providers::{Provider, Http, Ws};
-use std::sync::Arc;
+// use ethers::providers::{ Http, Ws};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::time::Duration;
@@ -45,10 +51,13 @@ use dotenv::dotenv;
 use std::fs::OpenOptions;
 use std::io::Write;
 use crate::token_tax::{load_token_tax_map, TokenTaxMap};
-
+use alloy_provider::Provider as AlloyProviderTrait;
+use tokio::net::UnixStream;
 #[tokio::main]
 async fn main() {
     dotenv().ok();
+    // Start background IPC event listener
+    // ipc_event_listener::spawn_ipc_event_listener();
     println!("🚀 Starting Ultra-Low Latency Arbitrage Bot...");
     let config = Config::default();
 
@@ -91,11 +100,11 @@ async fn main() {
     let mut pairs: Vec<PairInfo> = Vec::new();
     let mut v3_count = 0;
     let mut files_found = 0;
-    
-    for file_path in ["data/liquid_pairs_v2_new.jsonl", "data/liquid_pairs_v3_new.jsonl"] {
+    // 
+    for file_path in ["data/liquid_pairs_v2_accurate_taxed.jsonl", "data/liquid_pairs_v3_new.jsonl"] {
         if let Ok(file) = File::open(file_path) {
             files_found += 1;
-            println!("📁 Loading pairs from: {}", file_path);
+            println!("�� Loading pairs from: {}", file_path);
             let reader = BufReader::new(file);
             let mut line_count = 0;
             let mut parse_errors = 0;
@@ -135,18 +144,23 @@ async fn main() {
 
     // --- Preload token tax info ---
     println!("Preloading token tax info...");
-    let token_tax_map: Arc<TokenTaxMap> = Arc::new(load_token_tax_map("data/token_tax_report.jsonl"));
+    let token_tax_map: Arc<TokenTaxMap> = Arc::new(load_token_tax_map("data/token_zero_transfer_tax.jsonl"));
     println!("Loaded {} tokens with tax info.", token_tax_map.len());
 
     // Build providers and cache
     let provider = Arc::new(Provider::<Http>::try_from(&config.rpc_url).expect("provider"));
     let ws_provider = Arc::new(Provider::<Ws>::connect(&config.ws_url).await.expect("ws provider"));
     let reserve_cache = Arc::new(ReserveCache::default());
-
     // Preload reserves in parallel
     println!("Preloading reserves for all pools...");
     cache::preload_reserve_cache(&pairs, provider.clone(), &reserve_cache, 2000).await;
     println!("Reserve cache loaded: {} pools", reserve_cache.len());
+    price_tracker::start_price_tracker(
+            // provider.clone(),
+            ws_provider.clone(),
+            reserve_cache.clone(),
+            // token_tax_map.clone(),
+        ).await.expect("Failed to start price tracker");
 
 
 
@@ -460,30 +474,45 @@ async fn main() {
     let token_index_arc = Arc::new(token_index_map);
     let precomputed_route_cache_arc = Arc::new(precomputed_route_cache);
     
-    let mut opportunity_rx = start_mempool_monitoring(
-        ws_provider.clone(),
-        reserve_cache.clone(),
-        token_index_arc.clone(),
-        precomputed_route_cache_arc.clone(),
-        config.clone(),
-        token_tax_map.clone(), // <-- pass here
-    ).await.expect("Failed to start mempool monitoring");
+    // Remove the old mempool listener and spawn the new IPC feed listener in the background
+    // let http_url = "http://127.0.0.1:8545";
+    // let ws_url = "ws://127.0.0.1:8546";
+    // let dyn_provider: alloy_provider::DynProvider = alloy_provider::ProviderBuilder::new().connect(http_url).await.expect("Failed to connect HTTP provider").erased();
+    // let dyn_provider = Arc::new(dyn_provider);
+    // let reserve_cache_for_ipc = reserve_cache.clone();
+    // let token_index_arc_for_ipc = token_index_arc.clone();
+    // let precomputed_route_cache_arc_for_ipc = precomputed_route_cache_arc.clone();
+    // let config_for_ipc = config.clone();
+    // let opportunity_tx = price_tracker_tx.clone();
+    // let token_tax_map_for_ipc = token_tax_map.clone();
 
-    println!("✅ Mempool monitoring started successfully!");
-    
+    // tokio::spawn(async move {
+    //     if let Err(e) = ipc_feed::listen_and_fetch_details(
+    //         ws_url,
+    //         http_url,
+    //         dyn_provider,
+    //         &reserve_cache_for_ipc,
+    //         &token_index_arc_for_ipc,
+    //         &precomputed_route_cache_arc_for_ipc,
+    //         &token_tax_map_for_ipc,
+    //         &config_for_ipc,
+    //         &opportunity_tx
+    //     ).await {
+    //         eprintln!("[IPC FEED] Error: {e}");
+    //     }
+    // });
+
     // Start price tracker now that we have all the required data structures
-    println!("🚀 Starting price tracker (WS event listener)...");
-    price_tracker::start_price_tracker(
-        ws_provider.clone(), 
-        provider.clone(), 
+    ipc_event_listener::test_arb(&reserve_cache, &token_index_arc, &precomputed_route_cache_arc, &token_tax_map, &config).await;
+    ipc_event_listener::spawn_ipc_event_listener_with_cache(
         reserve_cache.clone(),
         token_index_arc.clone(),
         precomputed_route_cache_arc.clone(),
-        price_tracker_tx,
         token_tax_map.clone(),
         config.clone(),
-    ).await.expect("Failed to start price tracker");
-    println!("✅ Price tracker started successfully!");
+        price_tracker_tx.clone(),
+    ).await;
+   
     
     // Process arbitrage opportunities from both mempool and price tracker
     let mut opportunity_count = 0;
@@ -510,129 +539,19 @@ async fn main() {
         // println!("🔍 DEBUG: About to enter tokio::select!...");
         
         tokio::select! {
-            // Handle mempool opportunities with timeout
-            result = tokio::time::timeout(
-                tokio::time::Duration::from_secs(30), 
-                opportunity_rx.recv()
-            ) => {
-                // println!("🔍 DEBUG: Mempool timeout result received: {:?}", result.is_ok());
-                match result {
-                    Ok(Some(opportunity)) => {
-                        // println!("🔍 DEBUG: Processing mempool opportunity...");
-                        last_heartbeat = std::time::Instant::now();
-                        opportunity_count += 1;
-                        total_profit = total_profit.saturating_add(opportunity.estimated_profit);
-                        
-                        // println!("\n🎯 ARBITRAGE OPPORTUNITY #{} DETECTED! (Mempool)", opportunity_count);
-                        // println!("  TokenX: {}", opportunity.decoded_swap.token_x);
-                        // println!("  Amount: {}", opportunity.decoded_swap.token_x_amount);
-                        // println!("  Pool: {}", opportunity.decoded_swap.pool_address);
-                        // println!("  Estimated Profit: {}", opportunity.estimated_profit);
-                        // println!("  Profitable Routes: {}", opportunity.profitable_routes.len());
-                        // println!("  Running Total Profit: {}", total_profit);
-                        
-                        if let Some(best_route) = &opportunity.best_route {
-                            // println!("\n🏆 BEST ARBITRAGE ROUTE:");
-                            // print_simulated_route(best_route);
-                            // println!("  Full Path: {:?}", best_route.merged_amounts);
-                            // println!("  Token Path: {:?}", best_route.merged_symbols);
-                            // println!("  Pool Path: {:?}", best_route.merged_pools);
-                            
-                            if let Some(swap_data) = BuySellExecutionData::from_simulated_route(
-                                best_route,
-                                &pool_meta_map,
-                                &token_index_arc,
-                            ) {
-                                let contract_address = contract_address;
-                                let wallet = wallet.clone();
-                                let provider = provider.clone();
-                                tokio::spawn(async move {
-                                    // Log to executor.log before call
-                                    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("executor.log") {
-                                        let _ = writeln!(file, "[EXECUTOR CALL] contract_address={:?}, swap_data={:?}", contract_address, swap_data);
-                                    }
-                                    let result = execute_arbitrage_onchain(
-                                        contract_address,
-                                        swap_data,
-                                        wallet,
-                                        provider
-                                    ).await;
-                                    // Log to executor.log after call
-                                    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("executor.log") {
-                                        match &result {
-                                            Ok(tx_hash) => { let _ = writeln!(file, "[EXECUTOR RESULT] Success: tx_hash={:?}", tx_hash); },
-                                            Err(e) => {
-                                                let msg = e.to_string();
-                                                let decoded = if let Some(idx) = msg.find("0x08c379a0") {
-                                                    let hex_data = &msg[idx..].split_whitespace().next().unwrap_or("");
-                                                    decode_revert_reason(hex_data)
-                                                } else { None };
-                                                if let Some(reason) = decoded {
-                                                    let _ = writeln!(file, "[EXECUTOR RESULT] Error: {} | Decoded: {}", msg, reason);
-                                                } else {
-                                                    let _ = writeln!(file, "[EXECUTOR RESULT] Error: {}", msg);
-                                                }
-                                            },
-                                        }
-                                    }
-                                    match result {
-                                        Ok(tx_hash) => println!("[ARBITRAGE EXECUTED] Tx hash: {tx_hash:?}"),
-                                        Err(e) => eprintln!("[ARBITRAGE ERROR] {e}"),
-                                    }
-                                });
-                            } else {
-                                eprintln!("Failed to build BuySellExecutionData for best route");
-                            }
-                        }
-                        
-                        // Print hourly summary every 10 opportunities
-                        // if opportunity_count % 10 == 0 {
-                        //     println!("\n📊 HOURLY SUMMARY UPDATE:");
-                        //     println!("  Total Opportunities: {}", opportunity_count);
-                        //     println!("  Total Estimated Profit: {}", total_profit);
-                        //     println!("  Average Profit per Opportunity: {}", 
-                        //         if opportunity_count > 0 { total_profit / U256::from(opportunity_count) } else { U256::zero() });
-                        // }
-                    }
-                    Ok(None) => {
-                        println!("❌ Mempool channel closed, stopping bot...");
-                        break;
-                    }
-                    Err(_) => {
-                        // Timeout - this is normal, just continue
-                        println!("⏰ Mempool timeout (normal), continuing...");
-                    }
-                }
-            }
-            
-            // Handle price tracker opportunities with timeout
+            // Handle arbitrage opportunities with timeout
             result = tokio::time::timeout(
                 tokio::time::Duration::from_secs(30), 
                 price_tracker_rx.recv()
             ) => {
-                // println!("🔍 DEBUG: Price tracker timeout result received: {:?}", result.is_ok());
+                // handle result (merge logic from both previous arms here)
                 match result {
                     Ok(Some(opportunity)) => {
-                        // println!("🔍 DEBUG: Processing price tracker opportunity...");
                         last_heartbeat = std::time::Instant::now();
                         opportunity_count += 1;
                         total_profit = total_profit.saturating_add(opportunity.estimated_profit);
-                        
-                        // // println!("\n🎯 ARBITRAGE OPPORTUNITY #{} DETECTED! (Price Tracker)", opportunity_count);
-                        // println!("  TokenX: {}", opportunity.decoded_swap.token_x);
-                        // println!("  Amount: {}", opportunity.decoded_swap.token_x_amount);
-                        // println!("  Pool: {}", opportunity.decoded_swap.pool_address);
-                        // println!("  Estimated Profit: {}", opportunity.estimated_profit);
-                        // println!("  Profitable Routes: {}", opportunity.profitable_routes.len());
-                        // println!("  Running Total Profit: {}", total_profit);
-                        
                         if let Some(best_route) = &opportunity.best_route {
                             println!("\n🏆 BEST ARBITRAGE ROUTE:");
-                            // print_simulated_route(best_route);
-                            // println!("  Full Path: {:?}", best_route.merged_amounts);
-                            // println!("  Token Path: {:?}", best_route.merged_symbols);
-                            // println!("  Pool Path: {:?}", best_route.merged_pools);
-                            
                             if let Some(swap_data) = BuySellExecutionData::from_simulated_route(
                                 best_route,
                                 &pool_meta_map,
@@ -642,7 +561,6 @@ async fn main() {
                                 let wallet = wallet.clone();
                                 let provider = provider.clone();
                                 tokio::spawn(async move {
-                                    // Log to executor.log before call
                                     if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("executor.log") {
                                         let _ = writeln!(file, "[EXECUTOR CALL] contract_address={:?}, swap_data={:?}", contract_address, swap_data);
                                     }
@@ -652,7 +570,6 @@ async fn main() {
                                         wallet,
                                         provider
                                     ).await;
-                                    // Log to executor.log after call
                                     if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("executor.log") {
                                         match &result {
                                             Ok(tx_hash) => { let _ = writeln!(file, "[EXECUTOR RESULT] Success: tx_hash={:?}", tx_hash); },
@@ -679,33 +596,21 @@ async fn main() {
                                 eprintln!("Failed to build BuySellExecutionData for best route");
                             }
                         }
-                        
-                        // Print hourly summary every 10 opportunities
-                        // if opportunity_count % 10 == 0 {
-                        //     println!("\n📊 HOURLY SUMMARY UPDATE:");
-                        //     println!("  Total Opportunities: {}", opportunity_count);
-                        //     println!("  Total Estimated Profit: {}", total_profit);
-                        //     println!("  Average Profit per Opportunity: {}", 
-                        //         if opportunity_count > 0 { total_profit / U256::from(opportunity_count) } else { U256::zero() });
-                        // }
                     }
                     Ok(None) => {
                         println!("❌ Price tracker channel closed, stopping bot...");
                         break;
                     }
                     Err(_) => {
-                        // Timeout - this is normal, just continue
                         println!("⏰ Price tracker timeout (normal), continuing...");
                     }
                 }
             }
-            
             // Periodic heartbeat to show the bot is alive
             _ = tokio::time::sleep(tokio::time::Duration::from_secs(60)) => {
                 println!("💓 Bot heartbeat - {} opportunities found, {} total profit", opportunity_count, total_profit);
                 last_heartbeat = std::time::Instant::now();
             }
-            
             // Handle Ctrl+C gracefully
             _ = tokio::signal::ctrl_c() => {
                 println!("\n🛑 Received Ctrl+C, shutting down gracefully...");

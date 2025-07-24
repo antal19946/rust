@@ -25,7 +25,7 @@ pub struct SimulatedRoute {
     pub buy_pools: Vec<H160>,        // pool addresses for each hop
     pub sell_pools: Vec<H160>,        // pool addresses for each hop
 
-    // pub merged_pools: Vec<H160>,        // pool addresses for each hop
+    pub merged_pools: Vec<H160>,        // pool addresses for each hop
     pub profit: U256,                   // baseOut - baseIn
     pub profit_percentage: f64,         // (profit / amount_in) * 100
     pub buy_path: RoutePath,
@@ -101,8 +101,8 @@ pub fn simulate_all_paths_for_token_x(
             // )?;
             // let merged_symbols = merged_tokens.iter().map(|&idx| token_index_to_symbol(idx, token_index)).collect();
             // // Merge pools: buy_path.pools + sell_path.pools
-            // let mut merged_pools = buy_path.pools.clone();
-            // merged_pools.extend_from_slice(&sell_path.pools);
+            let mut merged_pools = buy_path.pools.clone();
+            merged_pools.extend_from_slice(&sell_path.pools);
             // Profit: last - first (saturating to avoid panic)
             let profit = merged_amounts.last().unwrap().saturating_sub(merged_amounts[0]);
             
@@ -123,7 +123,7 @@ pub fn simulate_all_paths_for_token_x(
                 // merged_symbols,
                 buy_symbols: buy_path.hops.iter().map(|&idx| token_index_to_symbol(idx, token_index)).collect(),
                 sell_symbols: sell_path.hops.iter().map(|&idx| token_index_to_symbol(idx, token_index)).collect(),
-                // merged_pools: merged_pools.clone(),
+                merged_pools: merged_pools.clone(),
                 buy_pools: buy_path.pools.clone(),
                 sell_pools: sell_path.pools.clone(),
                 profit,

@@ -1,0 +1,32 @@
+[
+  {
+    "name": "buySellExecution",
+    "type": "function",
+    "inputs": [
+      { "name": "buy_tokens", "type": "address[]" },
+      { "name": "buy_pools", "type": "address[]" },
+      { "name": "buy_poolTypes", "type": "uint8[]" },
+      { "name": "buy_amounts", "type": "uint256[]" },
+      { "name": "sell_tokens", "type": "address[]" },
+      { "name": "sell_pools", "type": "address[]" },
+      { "name": "sell_poolTypes", "type": "uint8[]" },
+      { "name": "sell_amounts", "type": "uint256[]" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "name": "executeSwap",
+    "type": "function",
+    "inputs": [
+      { "name": "tokens", "type": "address[]" },
+      { "name": "pools", "type": "address[]" },
+      { "name": "poolTypes", "type": "uint8[]" },
+      { "name": "amounts", "type": "uint256[]" },
+      { "name": "extraData", "type": "bytes[]" },
+      { "name": "minAmountOut", "type": "uint256" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  }
+]
