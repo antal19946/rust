@@ -12,7 +12,6 @@ mod split_route_path;
 mod simulate_swap_path;
 mod v3_math;
 mod arbitrage_finder;
-mod mempool_decoder;
 mod executor;
 mod token_tax;
 // mod ipc_feed;
